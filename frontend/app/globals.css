@@ -1,0 +1,559 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Token system. Every colour in the app resolves through a variable here, so light and
+ * dark are one source of truth rather than two sets of utility classes to keep in sync.
+ *
+ * Three theme states: no attribute follows the OS; data-theme="light"/"dark" is an explicit
+ * choice. Tailwind's `dark:` variant is deliberately unused — the variables do the work.
+ */
+
+:root {
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f4f4f5;
+  --surface-3: #ececee;
+
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+
+  --text: #18181b;
+  --text-2: #52525b;
+  --text-3: #7c7c86;
+
+  --pass-fg: #047857;
+  --pass-bg: #ecfdf5;
+  --pass-border: #a7f3d0;
+
+  --fail-fg: #be123c;
+  --fail-bg: #fff1f2;
+  --fail-border: #fecdd3;
+
+  --exempt-fg: #475569;
+  --exempt-bg: #f1f5f9;
+  --exempt-border: #cbd5e1;
+
+  --warn-fg: #92400e;
+  --warn-bg: #fffbeb;
+  --warn-border: #fde68a;
+
+  /* Severity is an ORDINAL STATUS scale, not a categorical series — it steps hue and
+     lightness together so the order is legible without relying on hue alone. These four
+     steps were run through the dataviz validator against this surface rather than picked
+     by eye: worst adjacent pair is 15.5 ΔE normal-vision / 8.3 deutan, which clears the
+     floor. Two validator complaints are accepted on purpose: `low` reads gray (it SHOULD
+     recede — it is the bottom of an ordinal scale, not a series), and status marks always
+     ship with a text label beside them, never colour alone.
+     Do not "tidy" these to rounder Tailwind values — #ea580c/#d97706 collide at ΔE 6.7. */
+  --sev-critical: #be123c;
+  --sev-high: #ea580c;
+  --sev-medium: #d4a017;
+  --sev-low: #94a3b8;
+
+  --focus: #2563eb;
+  --track: #e4e4e7;
+
+  /* brand accent — the green in the mark */
+  --brand: #059669;
+  /* the logo files carry their own opaque ground; matching it here means the
+     lockup never reads as a pasted-on rectangle. Measured, not guessed. */
+  --logo-bg: #fefefe;
+
+  /* accent surfaces — the brand green used as tint, ring and glow rather than
+     just as a mark colour. Kept low-saturation so it reads as emphasis, not decoration. */
+  --brand-soft: rgba(5, 150, 105, 0.075);
+  --brand-ring: rgba(5, 150, 105, 0.32);
+  --brand-glow: rgba(5, 150, 105, 0.14);
+  --fail-glow: rgba(190, 18, 60, 0.13);
+  /* Ambient wash only. Deliberately NOT the fail red: in this app red means "breach",
+     and tinting the whole page with it implies a verdict the report has not made. */
+  --atmo-2: rgba(37, 99, 235, 0.07);
+
+  /* elevation — two steps only. A dashboard with five shadow depths reads as clutter. */
+  --elev-1: 0 1px 2px rgba(24, 24, 27, 0.05), 0 1px 3px rgba(24, 24, 27, 0.04);
+  --elev-2: 0 4px 12px rgba(24, 24, 27, 0.07), 0 2px 4px rgba(24, 24, 27, 0.05);
+  --elev-3: 0 12px 32px rgba(24, 24, 27, 0.10), 0 4px 8px rgba(24, 24, 27, 0.05);
+
+  /* chart furniture — recessive by design */
+  --grid: #ececee;
+  --axis: #a1a1aa;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #09090b;
+    --surface: #131316;
+    --surface-2: #1a1a1e;
+    --surface-3: #232328;
+
+    --border: #27272a;
+    --border-strong: #3f3f46;
+
+    --text: #fafafa;
+    --text-2: #a1a1aa;
+    --text-3: #7c7c86;
+
+    --pass-fg: #34d399;
+    --pass-bg: #05201a;
+    --pass-border: #14503f;
+
+    --fail-fg: #fb7185;
+    --fail-bg: #2a0d15;
+    --fail-border: #6b1f31;
+
+    --exempt-fg: #a1a1aa;
+    --exempt-bg: #1c1c21;
+    --exempt-border: #3f3f46;
+
+    --warn-fg: #fbbf24;
+    --warn-bg: #241a05;
+    --warn-border: #5c430d;
+
+    --sev-critical: #f43f5e;
+    --sev-high: #fb923c;
+    --sev-medium: #fde047;
+    --sev-low: #94a3b8;
+
+    --focus: #60a5fa;
+    --track: #27272a;
+
+    --brand: #34d399;
+    --logo-bg: #070707;
+
+    --brand-soft: rgba(52, 211, 153, 0.10);
+    --brand-ring: rgba(52, 211, 153, 0.36);
+    --brand-glow: rgba(52, 211, 153, 0.16);
+    --fail-glow: rgba(251, 113, 133, 0.15);
+    --atmo-2: rgba(96, 165, 250, 0.10);
+
+    --elev-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --elev-2: 0 4px 14px rgba(0, 0, 0, 0.55), 0 2px 4px rgba(0, 0, 0, 0.4);
+    --elev-3: 0 16px 40px rgba(0, 0, 0, 0.6), 0 4px 10px rgba(0, 0, 0, 0.45);
+
+    --grid: #232328;
+    --axis: #71717a;
+
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #09090b;
+  --surface: #131316;
+  --surface-2: #1a1a1e;
+  --surface-3: #232328;
+
+  --border: #27272a;
+  --border-strong: #3f3f46;
+
+  --text: #fafafa;
+  --text-2: #a1a1aa;
+  --text-3: #7c7c86;
+
+  --pass-fg: #34d399;
+  --pass-bg: #05201a;
+  --pass-border: #14503f;
+
+  --fail-fg: #fb7185;
+  --fail-bg: #2a0d15;
+  --fail-border: #6b1f31;
+
+  --exempt-fg: #a1a1aa;
+  --exempt-bg: #1c1c21;
+  --exempt-border: #3f3f46;
+
+  --warn-fg: #fbbf24;
+  --warn-bg: #241a05;
+  --warn-border: #5c430d;
+
+  --sev-critical: #f43f5e;
+  --sev-high: #fb923c;
+  --sev-medium: #fde047;
+  --sev-low: #94a3b8;
+
+  --focus: #60a5fa;
+  --track: #27272a;
+
+  --brand: #34d399;
+  --logo-bg: #070707;
+
+  --brand-soft: rgba(52, 211, 153, 0.10);
+  --brand-ring: rgba(52, 211, 153, 0.36);
+  --brand-glow: rgba(52, 211, 153, 0.16);
+  --fail-glow: rgba(251, 113, 133, 0.15);
+  --atmo-2: rgba(96, 165, 250, 0.10);
+
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --elev-2: 0 4px 14px rgba(0, 0, 0, 0.55), 0 2px 4px rgba(0, 0, 0, 0.4);
+  --elev-3: 0 16px 40px rgba(0, 0, 0, 0.6), 0 4px 10px rgba(0, 0, 0, 0.45);
+
+  --grid: #232328;
+  --axis: #71717a;
+
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, "Segoe UI", Arial, sans-serif;
+  /* Installed, there is no browser chrome to rubber-band against, so the whole page
+     bouncing on overscroll reads as the app coming loose. */
+  overscroll-behavior-y: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Mobile / installed-PWA
+   --------------------------------------------------------------------------- */
+
+/* iOS zooms the viewport when a focused input's font-size is under 16px, then never
+   zooms back — the classic "my app is broken on iPhone" bug. Fixed at the source rather
+   than by capping maximum-scale, which would take pinch-zoom away from everyone. */
+@media (max-width: 1023px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    /* !important is correct here, and only here. A bare element selector (0,0,1) loses to
+       Tailwind's .text-xs / .text-sm (0,1,0), so without it the payload textarea stays at
+       12px and iOS zooms the viewport on focus — then never zooms back. Overriding the
+       utility is the entire intent, so say so rather than winning by selector trickery. */
+    font-size: 16px !important;
+  }
+}
+
+/* Notch and home-indicator padding. Only applies where the browser reports an inset, so
+   it costs nothing on a rectangular screen. */
+@supports (padding: max(0px)) {
+  .safe-x {
+    padding-left: max(1.25rem, env(safe-area-inset-left));
+    padding-right: max(1.25rem, env(safe-area-inset-right));
+  }
+  .safe-top { padding-top: max(0.75rem, env(safe-area-inset-top)); }
+  .safe-bottom { padding-bottom: max(1.5rem, env(safe-area-inset-bottom)); }
+}
+
+/* Touch targets. WCAG 2.5.8 wants 24px minimum; 44px is the comfortable figure and the
+   one Apple and Google both use. Applies only to coarse pointers so the dense desktop
+   layout is untouched. */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  a.btn,
+  .btn,
+  .btn-primary,
+  summary {
+    min-height: 44px;
+  }
+  /* Table rows are the primary drill-down target on a phone. */
+  table tbody th,
+  table tbody td {
+    padding-top: 0.85rem;
+    padding-bottom: 0.85rem;
+  }
+  /* Tap highlight is a grey box that fights our own hover styling. */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* A wide table inside a phone viewport must scroll itself, never the page. */
+.scroll-x {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Raleway carries headings; Open Sans carries everything else. Raleway runs a little
+   wide, so headings get slightly tighter tracking to keep the dense layout from
+   loosening up. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.015em;
+}
+
+/* A visible focus ring is not optional in a tool people drive from the keyboard. */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Restraint reinforces the "serious compliance tool" read (04-frontend.md §5). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Staggered delays would otherwise still hold content hidden for a quarter second. */
+  .reveal, .reveal-fade, .pop,
+  .d-1, .d-2, .d-3, .d-4, .d-5, .d-6 {
+    animation-delay: 0ms !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .atmosphere { display: none; }
+}
+
+/* ---------------------------------------------------------------------------
+   Motion system
+
+   Only transform / opacity / filter / clip-path are animated — never width, height,
+   top or left, which force layout on every frame.
+
+   Durations sit at 150-420ms with a decelerating curve. This is a tool someone reads
+   a ₹20,000 breach in, so motion is here to explain where things came from, not to
+   perform. Nothing loops; nothing waits on an animation to become usable.
+   --------------------------------------------------------------------------- */
+
+@keyframes reveal-up {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes reveal-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pop-in {
+  0%   { opacity: 0; transform: scale(0.92); }
+  60%  { opacity: 1; transform: scale(1.015); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+@keyframes grow-x {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+@keyframes splash-in {
+  from { opacity: 0; transform: scale(0.965); }
+  to   { opacity: 1; transform: none; }
+}
+/* Two <img> tags, one shown per theme — a CSS background cannot swap an <img src>, and
+   the three-state theme (system / explicit light / explicit dark) needs all three cases. */
+.logo-dark { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .logo-light { display: none; }
+  :root:not([data-theme="light"]) .logo-dark { display: block; }
+}
+:root[data-theme="dark"] .logo-light { display: none; }
+:root[data-theme="dark"] .logo-dark { display: block; }
+
+/* Entrance utilities. `both` so the element is hidden before its delay elapses —
+   without it every card flashes at full opacity for one frame first. */
+.reveal      { animation: reveal-up 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.reveal-fade { animation: reveal-in 420ms ease-out both; }
+.pop         { animation: pop-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+.d-1 { animation-delay: 40ms; }
+.d-2 { animation-delay: 80ms; }
+.d-3 { animation-delay: 120ms; }
+.d-4 { animation-delay: 160ms; }
+.d-5 { animation-delay: 200ms; }
+.d-6 { animation-delay: 240ms; }
+
+/* Atmosphere: two soft accent washes behind the shell. Fixed and non-interactive, so
+   they cost one composited layer and never intercept a click. */
+.atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(60rem 32rem at 12% -8%, var(--brand-glow), transparent 65%),
+    radial-gradient(46rem 28rem at 105% 6%, var(--atmo-2), transparent 62%);
+}
+
+/* A row that explains itself on hover: an accent edge slides in from the left. */
+.row-accent { position: relative; }
+.row-accent::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--brand);
+  transform: scaleY(0);
+  transform-origin: center;
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.row-accent:hover::before { transform: scaleY(1); }
+.row-accent[data-verdict="fail"]::before { background: var(--fail-fg); }
+
+/* Skeletons shimmer rather than pulse — a pulse reads as "broken", a sweep as "loading". */
+.shimmer { position: relative; overflow: hidden; }
+.shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--surface-3), transparent);
+  animation: shimmer 1.4s infinite;
+}
+
+.lift {
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms ease-out,
+              border-color 180ms ease-out;
+}
+.lift:hover { transform: translateY(-2px); box-shadow: var(--elev-2); }
+
+/* Coarse pointers get no hover transforms: there is no hover on a touchscreen, and the
+   styles only fire on tap — which reads as lag. */
+@media (pointer: coarse) {
+  .btn:hover:not(:disabled),
+  .btn-primary:hover:not(:disabled),
+  .card-interactive:hover,
+  .lift:hover {
+    transform: none;
+    box-shadow: var(--elev-1);
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-lg border border-line bg-surface;
+    box-shadow: var(--elev-1);
+  }
+  /* Opt-in hover for cards that are actually a target. A static panel that lifts when
+     the cursor drifts over it is noise, not feedback. */
+  .card-interactive {
+    transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 180ms ease-out, border-color 180ms ease-out;
+    will-change: transform;
+  }
+  .card-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--elev-3);
+    border-color: var(--brand-ring);
+  }
+  .card-interactive:active {
+    transform: translateY(0);
+    box-shadow: var(--elev-1);
+  }
+  .clause {
+    @apply font-mono text-xs text-muted;
+  }
+  .label {
+    @apply text-[11px] font-medium uppercase tracking-wider text-faint;
+  }
+  .btn {
+    @apply inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-3 py-1.5
+           text-sm text-body disabled:cursor-not-allowed disabled:opacity-50;
+    transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1), background-color 140ms ease-out,
+                border-color 140ms ease-out, box-shadow 140ms ease-out;
+  }
+  .btn:hover:not(:disabled) {
+    background: var(--surface-2);
+    border-color: var(--border-strong);
+    transform: translateY(-1px);
+    box-shadow: var(--elev-2);
+  }
+  /* The press has to travel further than the hover, or the button feels sticky. */
+  .btn:active:not(:disabled) {
+    transform: translateY(0.5px) scale(0.985);
+    box-shadow: none;
+  }
+  .btn-primary {
+    @apply relative inline-flex items-center gap-1.5 overflow-hidden rounded-md bg-ink px-4 py-1.5
+           text-sm font-medium text-paper disabled:cursor-not-allowed disabled:opacity-50;
+    transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 140ms ease-out,
+                opacity 140ms ease-out;
+  }
+  .btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--elev-3), 0 0 0 3px var(--brand-soft);
+  }
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(0.5px) scale(0.985);
+    box-shadow: none;
+  }
+  /* A single sheen sweep on hover — one pass, no loop. A button that shimmers forever
+     is a distraction sitting in your peripheral vision all day. */
+  /* Children are unpositioned, so a positioned ::after paints above them — the sheen
+     would sweep over the label. Pin it below and lift the content above. */
+  .btn-primary > * {
+    position: relative;
+    z-index: 1;
+  }
+  .btn-primary::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: linear-gradient(100deg, transparent 30%, var(--brand-soft) 50%, transparent 70%);
+    transform: translateX(-100%);
+    transition: transform 620ms ease-out;
+    pointer-events: none;
+  }
+  .btn-primary:hover:not(:disabled)::after { transform: translateX(100%); }
+  .input {
+    @apply rounded-md border border-line bg-surface px-3 py-1.5 text-sm text-body
+           placeholder:text-faint;
+    transition: border-color 140ms ease-out, box-shadow 140ms ease-out;
+  }
+  .input:hover { border-color: var(--border-strong); }
+  .input:focus {
+    border-color: var(--brand-ring);
+    box-shadow: 0 0 0 3px var(--brand-soft);
+    outline: none;
+  }
+  .kbd {
+    @apply rounded border border-line bg-surface-2 px-1 py-0.5 font-mono text-[10px] text-muted;
+  }
+
+  /* Type scale.
+     The page was previously flat — an h1 at 18px sat almost level with a card title, so
+     nothing anchored the eye on entry. These three steps give a real hierarchy: a page
+     owns the screen, a section groups, a card labels. */
+  .page-title {
+    @apply font-display text-[26px] font-bold leading-tight tracking-[-0.02em] text-body;
+  }
+  .page-lede {
+    @apply mt-2 max-w-2xl text-sm leading-relaxed text-muted;
+  }
+  .eyebrow {
+    @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-faint;
+  }
+  .section-title {
+    @apply font-display text-[15px] font-semibold tracking-[-0.01em] text-body;
+  }
+
+  /* A stat that is meant to be read from across the room. */
+  .stat-value {
+    @apply font-display text-[28px] font-bold leading-none tracking-[-0.02em] tabular-nums;
+  }
+}
+
+/* A compliance report is a document. It should print like one. */
+@media print {
+  :root {
+    --bg: #fff;
+    --surface: #fff;
+    --surface-2: #fff;
+    color-scheme: light;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .card {
+    break-inside: avoid;
+    border-color: #d4d4d8;
+  }
+  a[href]::after {
+    content: "";
+  }
+}

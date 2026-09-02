@@ -1,0 +1,252 @@
+{
+  "_source": "Real payment entities fetched from the Razorpay test-mode API. The webhook envelope around each is reconstructed, not captured \u2014 Razorpay blocklists request-bin hostnames. PII redacted.",
+  "events": [
+    {
+      "entity": "event",
+      "event": "payment.captured",
+      "contains": [
+        "payment"
+      ],
+      "created_at": 1787899325,
+      "payload": {
+        "payment": {
+          "entity": {
+            "id": "pay_TV5vSrDunfGyNY",
+            "entity": "payment",
+            "amount": 2000000,
+            "amount_captured": null,
+            "currency": "INR",
+            "status": "captured",
+            "order_id": "order_TV5v8YKDNAjZvA",
+            "invoice_id": null,
+            "international": false,
+            "method": "netbanking",
+            "amount_refunded": 0,
+            "refund_status": null,
+            "captured": true,
+            "description": "#TV5v6J7m0yMr0Q",
+            "bank": "PUNB_R",
+            "wallet": null,
+            "notes": {
+              "rakshak_afa_present": "false",
+              "rakshak_debit_due_at": "2026-08-28T09:00:00+05:30",
+              "rakshak_notice_sent_at": "2026-08-26T09:00:00+05:30"
+            },
+            "fee": 51920,
+            "tax": 7920,
+            "error_code": null,
+            "error_description": null,
+            "error_source": null,
+            "error_step": null,
+            "error_reason": null,
+            "acquirer_data": {
+              "bank_transaction_id": "4114482"
+            },
+            "created_at": 1787899325
+          }
+        }
+      }
+    },
+    {
+      "entity": "event",
+      "event": "payment.captured",
+      "contains": [
+        "payment"
+      ],
+      "created_at": 1787898818,
+      "payload": {
+        "payment": {
+          "entity": {
+            "id": "pay_TV5mXoRbaJYUxM",
+            "entity": "payment",
+            "amount": 50000,
+            "amount_captured": null,
+            "currency": "INR",
+            "status": "captured",
+            "order_id": "order_TV58I0xyLTAs0M",
+            "invoice_id": null,
+            "international": false,
+            "method": "netbanking",
+            "amount_refunded": 0,
+            "refund_status": null,
+            "captured": true,
+            "description": "#TV58Dj4G6VV0Su",
+            "bank": "PUNB_R",
+            "wallet": null,
+            "notes": {
+              "rakshak_afa_present": "false",
+              "rakshak_debit_due_at": "2026-08-28T09:00:00+05:30",
+              "rakshak_notice_sent_at": "2026-08-26T09:00:00+05:30"
+            },
+            "fee": 1298,
+            "tax": 198,
+            "error_code": null,
+            "error_description": null,
+            "error_source": null,
+            "error_step": null,
+            "error_reason": null,
+            "acquirer_data": {
+              "bank_transaction_id": "2292652"
+            },
+            "created_at": 1787898818
+          }
+        }
+      }
+    },
+    {
+      "entity": "event",
+      "event": "payment.failed",
+      "contains": [
+        "payment"
+      ],
+      "created_at": 1787896761,
+      "payload": {
+        "payment": {
+          "entity": {
+            "id": "pay_TV5CKXVFtODL52",
+            "entity": "payment",
+            "amount": 50000,
+            "amount_captured": null,
+            "currency": "INR",
+            "status": "failed",
+            "order_id": "order_TV58I0xyLTAs0M",
+            "invoice_id": null,
+            "international": true,
+            "method": "card",
+            "amount_refunded": 0,
+            "refund_status": null,
+            "captured": false,
+            "description": "#TV58Dj4G6VV0Su",
+            "card": {
+              "id": "card_TV5CKiMEl6v31G",
+              "entity": "card",
+              "name": "Test",
+              "last4": "1111",
+              "network": "Visa",
+              "type": "debit",
+              "issuer": null,
+              "international": true,
+              "emi": false,
+              "sub_type": "consumer",
+              "token_iin": "411111111"
+            },
+            "bank": null,
+            "wallet": null,
+            "notes": {
+              "rakshak_afa_present": "false",
+              "rakshak_debit_due_at": "2026-08-28T09:00:00+05:30",
+              "rakshak_notice_sent_at": "2026-08-26T09:00:00+05:30"
+            },
+            "fee": null,
+            "tax": null,
+            "error_code": "BAD_REQUEST_ERROR",
+            "error_description": "Your payment could not be completed as this business accepts domestic (Indian) card payments only. Try another payment method.",
+            "error_source": "business",
+            "error_step": "payment_initiation",
+            "error_reason": "international_transaction_not_allowed",
+            "acquirer_data": {
+              "auth_code": null
+            },
+            "created_at": 1787896761
+          }
+        }
+      }
+    },
+    {
+      "entity": "event",
+      "event": "payment.captured",
+      "contains": [
+        "payment"
+      ],
+      "created_at": 1778947537,
+      "payload": {
+        "payment": {
+          "entity": {
+            "id": "pay_Sq5yDVssgOBjB3",
+            "entity": "payment",
+            "amount": 14900,
+            "amount_captured": null,
+            "currency": "INR",
+            "status": "captured",
+            "order_id": "order_Sq5x3DYKPC2DEq",
+            "invoice_id": null,
+            "international": false,
+            "method": "card",
+            "amount_refunded": 0,
+            "refund_status": null,
+            "captured": true,
+            "description": "Explorer Monthly Plan",
+            "card": {
+              "id": "card_Sq5yDVssgOBjB3",
+              "entity": "card",
+              "name": "",
+              "last4": "1007",
+              "network": "Visa",
+              "type": "debit",
+              "issuer": "DCBL",
+              "international": false,
+              "emi": false,
+              "sub_type": "consumer"
+            },
+            "bank": null,
+            "wallet": null,
+            "notes": {},
+            "fee": null,
+            "tax": null,
+            "error_code": "",
+            "error_description": "",
+            "error_source": "gateway",
+            "error_step": null,
+            "error_reason": null,
+            "acquirer_data": {
+              "auth_code": ""
+            },
+            "created_at": 1778947537
+          }
+        }
+      }
+    },
+    {
+      "entity": "event",
+      "event": "payment.failed",
+      "contains": [
+        "payment"
+      ],
+      "created_at": 1776935664,
+      "payload": {
+        "payment": {
+          "entity": {
+            "id": "pay_Sgsg4ejSDcRs5v",
+            "entity": "payment",
+            "amount": 14900,
+            "amount_captured": null,
+            "currency": "INR",
+            "status": "failed",
+            "order_id": "order_SgseaUUKget6wX",
+            "invoice_id": null,
+            "international": false,
+            "method": "card",
+            "amount_refunded": 0,
+            "refund_status": null,
+            "captured": false,
+            "description": "Explorer Monthly Plan",
+            "bank": null,
+            "wallet": null,
+            "notes": {},
+            "fee": null,
+            "tax": null,
+            "error_code": "BAD_REQUEST_ERROR",
+            "error_description": "International cards are not supported. Please contact our support team for help",
+            "error_source": "business",
+            "error_step": "payment_initiation",
+            "error_reason": "international_transaction_not_allowed",
+            "acquirer_data": {
+              "auth_code": null
+            },
+            "created_at": 1776935664
+          }
+        }
+      }
+    }
+  ]
+}

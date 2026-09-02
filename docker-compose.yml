@@ -1,0 +1,30 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      # State is external now, so the container is disposable by design.
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL to your Postgres connection string}
+      DB_SCHEMA: ${DB_SCHEMA:-public}
+      ACTIVE_RULEPACK: ${ACTIVE_RULEPACK:-2026.04.21-1}
+      FRONTEND_ORIGIN: http://localhost:3000
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_BASE: http://localhost:8000/api/v1
+    depends_on:
+      backend:
+        condition: service_healthy

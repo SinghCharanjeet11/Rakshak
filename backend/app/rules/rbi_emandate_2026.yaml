@@ -1,0 +1,85 @@
+# Rakshak rule-pack — RBI Digital Payments E-mandate Framework 2026
+#
+# PRIMARY PACK. A pack is "primary" iff it declares `circular:` — the loader keys the
+# active rule-pack version off this file (see core/rules_loader.py). Non-primary packs
+# (npci_mandate.yaml) merge into whichever primary version is selected.
+#
+# OPEN-2 CLOSED for this file on 2026-09-02. Every value below was read from the text of
+# RBI/DPSS/2026-27/396 itself (also numbered RBI/CO.DPSS.POLC.No.S56/02.14.003/2026-27,
+# dated April 21, 2026), not from secondary reporting, and each `clause` now cites the
+# paragraph it came from. The circular consolidates and repeals eight prior circulars
+# issued between 2019 and 2024.
+
+version: "2026.04.21-1"
+source: "RBI Digital Payments E-mandate Framework 2026"
+circular: "RBI/DPSS/2026-27/396"
+effective_from: "2026-04-21"
+
+rules:
+  # §6(a) verbatim: "An issuer shall send a pre-transaction notification to the customer,
+  # at least 24 hours prior to the actual charge / debit."
+  - id: PRE_DEBIT_NOTICE_24H
+    title: "Pre-debit notice must precede debit by at least 24 hours"
+    applies_to: [debit]
+    severity: critical
+    clause: "RBI/DPSS/2026-27/396 §6(a)"
+    value_verified: true
+    verified_on: "2026-09-02"
+    condition:
+      kind: hours_between_at_least
+      earlier: notice_sent_at
+      later: debit_due_at
+      hours: 24
+
+  # §8(a) verbatim: "All recurring transactions may be authorised without AFA up to
+  # ₹15,000/- per transaction. Transactions above this amount shall be subject to AFA."
+  #
+  # "up to" is inclusive and "above this amount" is exclusive, so strictly-greater is the
+  # correct comparison: a debit of exactly ₹15,000 without AFA is compliant and must pass.
+  - id: AFA_ABOVE_THRESHOLD
+    title: "Additional Factor of Authentication required above ₹15,000"
+    applies_to: [debit]
+    severity: critical
+    clause: "RBI/DPSS/2026-27/396 §8(a)"
+    value_verified: true
+    verified_on: "2026-09-02"
+    condition:
+      kind: if_amount_gt_then_flag
+      amount_field: amount
+      threshold: 15000
+      required_flag: afa_present
+
+  # §6(d) verbatim: "Pre-transaction notification is not required for e-mandates
+  # registered to auto-replenish balances of FASTag, and National Common Mobility Card
+  # (NCMC)."
+  #
+  # Note the basis: the circular exempts by *purpose* (auto-replenishment of FASTag/NCMC),
+  # and mentions no MCC anywhere. MCC 4784 (tolls and bridge fees) is used here as the
+  # practical proxy available in a payment log — defensible, but it is our mapping, not
+  # the regulator's test. MCC 7412 was previously listed for NCMC and has been removed:
+  # it has no basis in the circular and could not be substantiated.
+  - id: EXEMPT_MCC_SKIP_NOTICE
+    title: "FASTag / NCMC auto-replenishment exempt from 24h notice"
+    kind: exemption
+    exempts: [PRE_DEBIT_NOTICE_24H]
+    when_mcc_in: ["4784"]
+    clause: "RBI/DPSS/2026-27/396 §6(d)"
+    value_verified: true
+    verified_on: "2026-09-02"
+
+  # §8(b) verbatim: "Payment of insurance premiums, subscription to mutual funds, and
+  # credit card bill payments may be made without AFA up to ₹1,00,000/- per transaction."
+  #
+  # Without this, a compliant ₹50,000 insurance-premium debit is reported as a critical
+  # AFA breach — a false positive on lawful behaviour, which is the failure mode this
+  # tool exists to avoid. Both selectors are required: the waiver is category-scoped AND
+  # capped, so a ₹1,50,000 premium correctly falls back to needing AFA.
+  - id: EXEMPT_HIGH_VALUE_CATEGORY_AFA
+    title: "Insurance / mutual fund / credit card bill exempt from AFA up to ₹1,00,000"
+    kind: exemption
+    exempts: [AFA_ABOVE_THRESHOLD]
+    when_category_in: [insurance_premium, mutual_fund_subscription, credit_card_bill]
+    max_amount: 100000
+    clause: "RBI/DPSS/2026-27/396 §8(b)"
+    value_verified: true
+    verified_on: "2026-09-02"

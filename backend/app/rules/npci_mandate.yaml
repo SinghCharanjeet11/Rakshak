@@ -1,0 +1,78 @@
+# Rakshak rule-pack — NPCI UPI Autopay / e-mandate + RBI conduct guidelines
+#
+# NON-PRIMARY pack (no `circular:` key): merges into every primary rule-pack version.
+#
+# OPEN-2 status for this file, as of 2026-09-02: the two numeric values below were
+# researched against multiple consistent secondary sources but NOT read in the primary
+# NPCI circular or the RBI Fair Practices Code themselves. Both were corrected as a
+# result, and both deliberately remain `value_verified: false` — a corrected number from
+# secondary sourcing is better than a wrong one, but it is not verification, and this
+# tool's credibility rests on not blurring the two.
+
+version: "2026.1"
+source: "NPCI UPI Autopay / e-mandate guidelines"
+
+rules:
+  # CORRECTED 2026-09-02. Was `max: 3`, which flagged the 4th attempt as a breach.
+  #
+  # NPCI's UPI Autopay rules effective 1 August 2025 permit a maximum of FOUR attempts
+  # per mandate — one original execution plus three retries — after which the mandate is
+  # auto-cancelled. `retry_index` counts *attempts* (see the field description in
+  # llm/ingestion_agent.py and the Razorpay adapter's `attempts` mapping), so attempt 4
+  # is the third retry and is permitted; attempt 5 is the first breach.
+  #
+  # This is not an RBI rule and must not cite the e-mandate circular: RBI/DPSS/2026-27/396
+  # contains no retry or velocity limit at all, despite §8 being titled "Transaction
+  # limits and velocity check".
+  - id: RETRY_CAP_PER_WINDOW
+    title: "Mandate attempts must not exceed 4 per window (1 original + 3 retries)"
+    applies_to: [mandate_retry]
+    severity: high
+    clause: "NPCI UPI Autopay mandate execution rules, effective 2025-08-01"
+    value_verified: false
+    condition:
+      kind: max_value
+      field: retry_index
+      max: 4
+
+  - id: NO_RETRY_UNDER_DISPUTE
+    title: "Do not retry a payment under active dispute"
+    applies_to: [mandate_retry, debit]
+    severity: critical
+    clause: "NPCI mandate + dispute handling"
+    value_verified: true
+    condition:
+      kind: flag_must_be_false
+      field: dispute_active
+
+  - id: RESPECT_OPT_OUT
+    title: "Do not contact a customer who has opted out"
+    applies_to: [contact, notify]
+    severity: high
+    clause: "consent / DND"
+    value_verified: true
+    condition:
+      kind: flag_must_be_false
+      field: consent_opted_out
+
+  # CORRECTED 2026-09-02. Was 09:00–21:00, which was wrong at BOTH ends: it let a 20:00
+  # call pass that should fail, and failed an 08:30 call that should pass.
+  #
+  # RBI's Fair Practices Code restricts recovery contact to 08:00–19:00. This is a
+  # conduct rule about contacting customers; it is NOT in the e-mandate circular, so the
+  # clause cites the Fair Practices Code instead.
+  #
+  # Distinct from, and not to be confused with, NPCI's separate restriction on Autopay
+  # *execution* windows (before 10:00, 13:00–17:00, after 21:30) — that governs when a
+  # debit may be processed, not when a human may be contacted, and is not encoded here.
+  - id: QUIET_HOURS
+    title: "No customer contact outside 08:00–19:00 IST"
+    applies_to: [contact]
+    severity: medium
+    clause: "RBI Fair Practices Code — recovery agent contact hours"
+    value_verified: false
+    condition:
+      kind: timestamp_hour_between
+      field: timestamp
+      start_hour: 8
+      end_hour: 19

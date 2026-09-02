@@ -1,0 +1,107 @@
+[
+  {
+    "id": "a_v01",
+    "type": "mandate_retry",
+    "mandate_id": "mdt_2001",
+    "customer_id": "cus_6001",
+    "amount": 1499.0,
+    "timestamp": "2026-08-20T11:00:00+05:30",
+    "retry_index": 5,
+    "window_start": "2026-08-19T00:00:00+05:30",
+    "dispute_active": false
+  },
+  {
+    "id": "a_v02",
+    "type": "debit",
+    "mandate_id": "mdt_2002",
+    "customer_id": "cus_6002",
+    "amount": 4999.0,
+    "timestamp": "2026-08-20T14:00:00+05:30",
+    "notice_sent_at": "2026-08-20T12:00:00+05:30",
+    "debit_due_at": "2026-08-20T14:00:00+05:30",
+    "afa_present": false,
+    "dispute_active": false
+  },
+  {
+    "id": "a_v03",
+    "type": "debit",
+    "mandate_id": "mdt_2003",
+    "customer_id": "cus_6003",
+    "amount": 20000.0,
+    "timestamp": "2026-08-20T15:00:00+05:30",
+    "notice_sent_at": "2026-08-18T15:00:00+05:30",
+    "debit_due_at": "2026-08-20T15:00:00+05:30",
+    "afa_present": false,
+    "dispute_active": false
+  },
+  {
+    "id": "a_v04",
+    "type": "mandate_retry",
+    "mandate_id": "mdt_2004",
+    "customer_id": "cus_6004",
+    "amount": 3200.0,
+    "timestamp": "2026-08-20T16:00:00+05:30",
+    "retry_index": 1,
+    "window_start": "2026-08-20T00:00:00+05:30",
+    "dispute_active": true
+  },
+  {
+    "id": "a_v05",
+    "type": "contact",
+    "mandate_id": "mdt_2005",
+    "customer_id": "cus_6005",
+    "timestamp": "2026-08-20T23:30:00+05:30",
+    "channel": "call",
+    "consent_opted_out": false
+  },
+  {
+    "id": "a_v06",
+    "type": "contact",
+    "mandate_id": "mdt_2006",
+    "customer_id": "cus_6006",
+    "timestamp": "2026-08-20T11:30:00+05:30",
+    "channel": "sms",
+    "consent_opted_out": true
+  },
+  {
+    "id": "a_v07",
+    "type": "debit",
+    "mandate_id": "mdt_2007",
+    "customer_id": "cus_6007",
+    "amount": 250.0,
+    "timestamp": "2026-08-20T17:00:00+05:30",
+    "notice_sent_at": "2026-08-20T15:00:00+05:30",
+    "debit_due_at": "2026-08-20T17:00:00+05:30",
+    "mcc": "4784",
+    "afa_present": false,
+    "dispute_active": false
+  },
+  {
+    "id": "a_v08",
+    "type": "notify",
+    "mandate_id": "mdt_2003",
+    "customer_id": "cus_6003",
+    "timestamp": "2026-08-18T15:00:00+05:30",
+    "channel": "email",
+    "consent_opted_out": false
+  },
+  {
+    "id": "a_v09",
+    "type": "debit",
+    "mandate_id": "mdt_2009",
+    "customer_id": "cus_6009",
+    "amount": 750.0,
+    "timestamp": "2026-08-20T09:00:00+05:30",
+    "notice_sent_at": "2026-08-18T09:00:00+05:30",
+    "debit_due_at": "2026-08-20T09:00:00+05:30",
+    "afa_present": false,
+    "dispute_active": false
+  },
+  {
+    "id": "a_v10",
+    "type": "escalate",
+    "mandate_id": "mdt_2004",
+    "customer_id": "cus_6004",
+    "timestamp": "2026-08-20T18:00:00+05:30"
+  }
+]

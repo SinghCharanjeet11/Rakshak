@@ -1,0 +1,34 @@
+# --- secrets ---
+.env
+.env.local
+*.pem
+
+# --- python ---
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+rakshak.db
+
+# --- node ---
+node_modules/
+.next/
+out/
+npm-debug.log*
+# TypeScript incremental build cache — machine-specific, rewritten on every build.
+tsconfig.tsbuildinfo
+
+# --- editors / os ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# --- third-party Claude skills (reinstall via CLAUDE.md instructions) ---
+.claude/skills/
+
+# playwright
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/

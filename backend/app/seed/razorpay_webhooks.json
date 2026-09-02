@@ -1,0 +1,210 @@
+{
+  "_source": "SYNTHETIC — representative Razorpay webhook shapes, NOT captured from a live test-mode account. Replace with real captures before the demo; see seed/README.md.",
+  "events": [
+    {
+      "entity": "event",
+      "account_id": "acc_TESTACCOUNT01",
+      "event": "subscription.charged",
+      "contains": ["payment", "subscription"],
+      "created_at": 1787196600,
+      "payload": {
+        "payment": {
+          "entity": {
+            "id": "pay_RZP0000000001",
+            "entity": "payment",
+            "amount": 49900,
+            "currency": "INR",
+            "status": "captured",
+            "method": "upi",
+            "created_at": 1787196600,
+            "notes": {
+              "rakshak_notice_sent_at": "2026-08-18T09:00:00+05:30",
+              "rakshak_debit_due_at": "2026-08-20T09:00:00+05:30",
+              "rakshak_afa_present": "false"
+            }
+          }
+        },
+        "subscription": {
+          "entity": {
+            "id": "sub_RZPMANDATE001",
+            "entity": "subscription",
+            "customer_id": "cust_RZPCUST00001",
+            "status": "active",
+            "current_start": 1787196600
+          }
+        }
+      }
+    },
+    {
+      "entity": "event",
+      "account_id": "acc_TESTACCOUNT01",
+      "event": "subscription.charged",
+      "contains": ["payment", "subscription"],
+      "created_at": 1787218200,
+      "payload": {
+        "payment": {
+          "entity": {
+            "id": "pay_RZP0000000002",
+            "entity": "payment",
+            "amount": 2000000,
+            "currency": "INR",
+            "status": "captured",
+            "method": "emandate",
+            "created_at": 1787218200,
+            "notes": {
+              "rakshak_notice_sent_at": "2026-08-18T15:00:00+05:30",
+              "rakshak_debit_due_at": "2026-08-20T15:00:00+05:30",
+              "rakshak_afa_present": "false"
+            }
+          }
+        },
+        "subscription": {
+          "entity": {
+            "id": "sub_RZPMANDATE002",
+            "entity": "subscription",
+            "customer_id": "cust_RZPCUST00002",
+            "status": "active",
+            "current_start": 1787218200
+          }
+        }
+      }
+    },
+    {
+      "entity": "event",
+      "account_id": "acc_TESTACCOUNT01",
+      "event": "payment.failed",
+      "contains": ["payment", "subscription"],
+      "created_at": 1787221800,
+      "payload": {
+        "payment": {
+          "entity": {
+            "id": "pay_RZP0000000003",
+            "entity": "payment",
+            "amount": 320000,
+            "currency": "INR",
+            "status": "failed",
+            "error_code": "BAD_REQUEST_ERROR",
+            "created_at": 1787221800,
+            "notes": {
+              "rakshak_retry_index": "1",
+              "rakshak_window_start": "2026-08-20T00:00:00+05:30",
+              "rakshak_dispute_active": "true"
+            }
+          }
+        },
+        "subscription": {
+          "entity": {
+            "id": "sub_RZPMANDATE003",
+            "entity": "subscription",
+            "customer_id": "cust_RZPCUST00003",
+            "status": "pending",
+            "current_start": 1787221800
+          }
+        }
+      }
+    },
+    {
+      "entity": "event",
+      "account_id": "acc_TESTACCOUNT01",
+      "event": "payment.failed",
+      "contains": ["payment", "subscription"],
+      "created_at": 1787203800,
+      "payload": {
+        "payment": {
+          "entity": {
+            "id": "pay_RZP0000000004",
+            "entity": "payment",
+            "amount": 149900,
+            "currency": "INR",
+            "status": "failed",
+            "created_at": 1787203800,
+            "notes": {
+              "rakshak_retry_index": "5",
+              "rakshak_window_start": "2026-08-19T00:00:00+05:30",
+              "rakshak_dispute_active": "false"
+            }
+          }
+        },
+        "subscription": {
+          "entity": {
+            "id": "sub_RZPMANDATE004",
+            "entity": "subscription",
+            "customer_id": "cust_RZPCUST00004",
+            "status": "pending",
+            "current_start": 1787203800
+          }
+        }
+      }
+    },
+    {
+      "entity": "event",
+      "account_id": "acc_TESTACCOUNT01",
+      "event": "subscription.charged",
+      "contains": ["payment", "subscription"],
+      "created_at": 1787225400,
+      "payload": {
+        "payment": {
+          "entity": {
+            "id": "pay_RZP0000000005",
+            "entity": "payment",
+            "amount": 25000,
+            "currency": "INR",
+            "status": "captured",
+            "method": "emandate",
+            "created_at": 1787225400,
+            "notes": {
+              "rakshak_notice_sent_at": "2026-08-20T15:00:00+05:30",
+              "rakshak_debit_due_at": "2026-08-20T17:00:00+05:30",
+              "rakshak_mcc": "4784",
+              "rakshak_afa_present": "false"
+            }
+          }
+        },
+        "subscription": {
+          "entity": {
+            "id": "sub_RZPMANDATE005",
+            "entity": "subscription",
+            "customer_id": "cust_RZPCUST00005",
+            "status": "active",
+            "current_start": 1787225400
+          }
+        }
+      }
+    },
+    {
+      "entity": "event",
+      "account_id": "acc_TESTACCOUNT01",
+      "event": "subscription.halted",
+      "contains": ["subscription"],
+      "created_at": 1787229000,
+      "payload": {
+        "subscription": {
+          "entity": {
+            "id": "sub_RZPMANDATE004",
+            "entity": "subscription",
+            "customer_id": "cust_RZPCUST00004",
+            "status": "halted",
+            "current_start": 1787229000
+          }
+        }
+      }
+    },
+    {
+      "entity": "event",
+      "account_id": "acc_TESTACCOUNT01",
+      "event": "payment.downtime.started",
+      "contains": ["payment.downtime"],
+      "created_at": 1787229000,
+      "payload": {
+        "payment.downtime": {
+          "entity": {
+            "id": "down_RZP00000001",
+            "entity": "payment.downtime",
+            "method": "upi",
+            "status": "started"
+          }
+        }
+      }
+    }
+  ]
+}
