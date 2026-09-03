@@ -10,7 +10,7 @@ import ast
 import inspect
 from pathlib import Path
 
-from app.llm import _provider, explanation_agent, ingestion_agent
+from app.llm import _provider, explanation_agent, ingestion_agent, rule_drafting_agent
 
 LLM_DIR = Path(__file__).resolve().parent.parent / "app" / "llm"
 
@@ -32,6 +32,32 @@ def test_ingestion_tool_reaches_nothing():
 
 def test_explanation_agent_declares_zero_tools():
     assert explanation_agent.EXPLANATION_TOOLS == []
+
+
+def test_rule_drafting_agent_declares_zero_tools():
+    """It reads a passage a human pasted. It needs nothing else, and must never gain a
+    tool that could reach the rules directory it is drafting for."""
+    assert rule_drafting_agent.DRAFTING_TOOLS == []
+
+
+def test_rule_drafting_agent_cannot_write_a_rule_pack():
+    """Structural, not a promise in a docstring.
+
+    The drafter proposes law for a human to enact. If it ever imports a writer or opens a
+    path, that separation is gone -- so the module is checked for write capability at all.
+    """
+    text = (LLM_DIR / "rule_drafting_agent.py").read_text(encoding="utf-8")
+    tree = ast.parse(text)
+    called = {
+        node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", "")
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+    }
+    for forbidden in ("write_text", "write_bytes", "open", "mkdir", "unlink", "rename"):
+        assert forbidden not in called, f"the drafter must not call {forbidden}"
+    assert "DEFAULT_RULES_DIR" not in text.replace(
+        "from app.core.rules_loader import CONDITION_KINDS, Exemption, Rule", ""
+    ), "the drafter must not know where the rule-pack lives"
 
 
 def test_no_tools_are_ever_passed_to_the_provider():

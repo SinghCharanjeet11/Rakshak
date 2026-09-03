@@ -79,7 +79,7 @@ Against the seed corpus, reproducible with `pytest -q`:
 | Razorpay webhook sequence (synthetic) | 7 events -> 6 actions, 3 violations; the non-action event ignored, not forced |
 | **Razorpay, real test-mode account** | **5 payments -> 5 actions, score 60.0.** A ₹20,000 payment Razorpay captured successfully fails `AFA_ABOVE_THRESHOLD`; a payment with no compliance notes fails for want of a pre-debit notice |
 | Prompt-injected log, model fully compromised | **no false PASS** (see below) |
-| Backend tests | **209 passing** (against Postgres, the engine that ships) |
+| Backend tests | **227 passing** (against Postgres, the engine that ships) |
 | Browser E2E tests | **27 passing** |
 
 Single-action verdict latency (`python scripts/bench_verify.py`):
@@ -119,7 +119,7 @@ cp .env.example .env          # OPENAI_API_KEY is optional; see below
 cd backend
 python -m venv .venv && .venv/Scripts/activate      # or: source .venv/bin/activate
 pip install -e ".[dev]"
-pytest -q                                            # 209 passed
+pytest -q                                            # 227 passed
 uvicorn app.main:app --reload --port 8000
 
 # frontend (new terminal)
@@ -149,6 +149,7 @@ Base `/api/v1`.
 | GET | `/health` | liveness, rule-pack version, unverified-value count, circular-check age |
 | GET | `/rules` · `/rules/versions` | the rule-pack, parsed and inspectable |
 | POST | `/verify` · `/verify/batch` | verify one action / a batch |
+| POST | `/rules/draft` | propose a rule-pack entry from regulation text (writes nothing) |
 | GET | `/reports` · `/reports/{id}` | stored reports |
 | GET | `/runs/{id}` | run record: status, budget, tokens/₹ spent, eval signals |
 | GET | `/runs/{id}/audit` | append-only action-audit trail |

@@ -8,8 +8,11 @@ a demonstrable claim rather than a slide.
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from app.core.rules_loader import RulePackError, available_versions
+from app.llm._provider import LLMUnavailable
+from app.llm.rule_drafting_agent import draft_rule
 from app.orchestration.orchestrator import get_pack
 
 router = APIRouter(tags=["rules"])
@@ -78,6 +81,50 @@ def get_rules(version: Optional[str] = Query(default=None)) -> dict[str, object]
             }
             for e in pack.exemptions
         ],
+    }
+
+
+class DraftRuleBody(BaseModel):
+    """Clause text a human pasted, plus an optional steer for the drafter."""
+
+    clause_text: str = Field(min_length=20, max_length=20_000)
+    hint: Optional[str] = Field(default=None, max_length=500)
+
+
+@router.post("/rules/draft")
+async def draft_rule_endpoint(body: DraftRuleBody) -> dict[str, object]:
+    """Propose a rule-pack entry from regulation text. **Writes nothing.**
+
+    Read that literally: this handler has no access to the rules directory and calls
+    nothing that does. The response is a proposal a human reads, edits and commits by
+    hand, which is what keeps the shipped artifact deterministic data rather than model
+    output. `tests/test_rule_drafting.py` asserts the active pack is byte-identical
+    before and after a call.
+    """
+    try:
+        result = await draft_rule(body.clause_text, body.hint)
+    except LLMUnavailable as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"the drafting layer is unreachable ({exc}). Rule authoring needs a model; "
+                "verification does not, and is unaffected."
+            ),
+        ) from exc
+
+    return {
+        "drafted": result.drafted,
+        # accepted means it survived the closed-vocabulary membrane, NOT that it is right.
+        "accepted": result.accepted,
+        "kind": result.kind,
+        "reason": result.reason,
+        "rejection": result.rejection,
+        "yaml": result.yaml,
+        "rule": result.rule.model_dump(mode="json") if result.rule else None,
+        "exemption": result.exemption.model_dump(mode="json") if result.exemption else None,
+        "tokens_used": result.usage.total_tokens,
+        "cost_inr": result.usage.cost_inr,
+        "review_required": True,
     }
 
 
