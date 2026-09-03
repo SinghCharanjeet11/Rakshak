@@ -21,10 +21,12 @@ services:
   frontend:
     build:
       context: ./frontend
+      # A build arg, not an environment variable: Next inlines NEXT_PUBLIC_* at build
+      # time, so setting it at runtime has no effect on the shipped bundle.
+      args:
+        NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:8000/api/v1}
     ports:
       - "3000:3000"
-    environment:
-      NEXT_PUBLIC_API_BASE: http://localhost:8000/api/v1
     depends_on:
       backend:
         condition: service_healthy
