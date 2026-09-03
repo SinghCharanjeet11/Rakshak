@@ -57,7 +57,12 @@ function Icon({ name }: { name: string }) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [pack, setPack] = useState<{ rules: number; unverified: number } | null>(null);
+  const [pack, setPack] = useState<{
+    rules: number;
+    unverified: number;
+    circularStale: boolean;
+    circularAge: number | null;
+  } | null>(null);
 
   useEffect(() => {
     getHealth()
@@ -65,6 +70,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         setPack({
           rules: h.rules_loaded,
           unverified: h.unverified_rule_values.length,
+          circularStale: h.circular_check_stale,
+          circularAge: h.circular_check_age_days,
         }),
       )
       .catch(() => setPack(null));
@@ -154,6 +161,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {pack.unverified > 0 && (
                 <span className="mt-1 inline-flex items-center gap-1 rounded border border-warn-border bg-warn-bg px-1.5 py-0.5 text-[10px] font-medium text-warn-fg">
                   {pack.unverified} unverified
+                </span>
+              )}
+              {/* A stale currency check is a distinct risk from an unverified value: the
+                  number may be right and the circular still repealed underneath it. */}
+              {pack.circularStale && (
+                <span
+                  title="The cited circular has not been confirmed current recently. Run scripts/check_circulars.py"
+                  className="mt-1 inline-flex items-center gap-1 rounded border border-warn-border bg-warn-bg px-1.5 py-0.5 text-[10px] font-medium text-warn-fg"
+                >
+                  circular unchecked
+                  {pack.circularAge !== null && ` ${pack.circularAge}d`}
                 </span>
               )}
             </Link>

@@ -98,7 +98,7 @@ test.describe("report", () => {
 
     const detail = page.locator("#detail-a_v03");
     await expect(detail).toContainText("AFA_ABOVE_THRESHOLD");
-    await expect(detail).toContainText("RBI/DPSS/2026-27/396 §AFA-threshold");
+    await expect(detail).toContainText("RBI/DPSS/2026-27/396 §8(a)");
     await expect(detail).toContainText("amount 20000 > 15000 but afa_present=false");
   });
 
@@ -110,7 +110,7 @@ test.describe("report", () => {
     const detail = page.locator("#detail-a_v07");
     await expect(detail).toContainText("EXEMPT_MCC_SKIP_NOTICE");
     await expect(detail).toContainText("4784");
-    await expect(detail).toContainText("RBI/DPSS/2026-27/396 §exemptions");
+    await expect(detail).toContainText("RBI/DPSS/2026-27/396 §6(d)");
   });
 
   test("run evidence exposes the budget and the append-only audit trail", async ({ page }) => {
@@ -134,14 +134,68 @@ test.describe("rule-pack", () => {
       page.getByRole("heading", { name: "RBI Digital Payments E-mandate Framework 2026" }),
     ).toBeVisible();
     await expect(page.getByText(/pending verification/)).toBeVisible();
-    await expect(page.locator("section[aria-labelledby='rules-heading'] article")).toHaveCount(6);
+    await expect(page.locator("section[aria-labelledby='rules-heading'] article")).toHaveCount(7);
   });
 
   test("search narrows the rule list", async ({ page }) => {
     await page.goto("/rules");
     await ready(page);
+    // "AFA" matches two of the seven rules, and the second one is the point: search covers
+    // clause_text, so NO_DEBIT_AFTER_OPT_OUT is found via §6(c)'s own words ("validated by
+    // the issuer using AFA") rather than only via our paraphrase of it.
     await page.locator("#rule-search").fill("AFA");
+    await expect(page.locator("section[aria-labelledby='rules-heading'] article")).toHaveCount(2);
+
+    await page.locator("#rule-search").fill("quiet");
     await expect(page.locator("section[aria-labelledby='rules-heading'] article")).toHaveCount(1);
+  });
+
+  test("a verified rule quotes the law it cites", async ({ page }) => {
+    // A citation nobody can check is an assertion. The screen has to carry the sentence,
+    // otherwise "cites the exact clause" rests on trusting a paragraph number.
+    await page.goto("/rules");
+    await ready(page);
+    await expect(
+      page.getByText("All recurring transactions may be authorised without AFA up to", {
+        exact: false,
+      }),
+    ).toBeVisible();
+  });
+
+  test("a secondary-sourced value is not dressed up as quoted law", async ({ page }) => {
+    // The failure this guards against is cosmetic and serious: an unverified value styled
+    // like a quotation would assert exactly the authority the flag exists to deny.
+    await page.goto("/rules");
+    await ready(page);
+    const warned = page.getByText(/Multiple consistent secondary sources report/).first();
+    await expect(warned).toBeVisible();
+    await expect(warned.locator("xpath=ancestor-or-self::blockquote")).toHaveCount(0);
+  });
+
+  test("search finds a rule by the wording of the law, not just our paraphrase", async ({
+    page,
+  }) => {
+    await page.goto("/rules");
+    await ready(page);
+    await page.locator("#rule-search").fill("pre-transaction notification");
+    await expect(
+      page.locator("section[aria-labelledby='rules-heading'] article"),
+    ).toHaveCount(1);
+  });
+
+  test("a category-only exemption explains itself without an empty MCC clause", async ({
+    page,
+  }) => {
+    // §8(b) matches on category plus an amount ceiling and carries no MCC. The viewer used
+    // to hard-code "MCC is {list}", rendering the literal text "MCC is ." for this one.
+    await page.goto("/rules");
+    await ready(page);
+    const card = page
+      .locator("section[aria-labelledby='exemptions-heading'] article")
+      .filter({ hasText: "EXEMPT_HIGH_VALUE_CATEGORY_AFA" });
+    await expect(card).toContainText("the category is");
+    await expect(card).toContainText("at most");
+    await expect(card).not.toContainText("MCC is .");
   });
 });
 

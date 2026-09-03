@@ -106,6 +106,11 @@ class Rule(BaseModel):
     # left to a YAML comment so it survives into /rules and the dashboard — "who checked
     # this, and when" is part of the audit trail, not metadata about it.
     verified_on: Optional[str] = None
+    # The cited clause, verbatim. A citation nobody can check is an assertion; carrying
+    # the sentence itself turns "trust our reading of §8(a)" into "here is §8(a)". It is
+    # display-only and can never reach a verdict — the condition above decides, and this
+    # is the evidence a reviewer reads to confirm the condition matches the law.
+    clause_text: Optional[str] = None
 
 
 class Exemption(BaseModel):
@@ -130,6 +135,7 @@ class Exemption(BaseModel):
     source: str = ""
     value_verified: bool = False
     verified_on: Optional[str] = None
+    clause_text: Optional[str] = None
 
     @model_validator(mode="after")
     def _requires_a_selector(self) -> "Exemption":
@@ -176,6 +182,11 @@ class PackSource(BaseModel):
     circular: Optional[str] = None
     effective_from: Optional[date] = None
     primary: bool = False
+    # When a human last confirmed the cited circular is still in force. This pack cites
+    # paragraph numbers in one specific document, and RBI/DPSS/2026-27/396 itself repealed
+    # eight earlier circulars — so a pack can become confidently wrong without anything in
+    # it changing. `scripts/check_circulars.py` refreshes this; /health reports its age.
+    circular_checked_on: Optional[date] = None
 
 
 class RulePack(BaseModel):
@@ -241,6 +252,7 @@ def _parse_file(path: Path) -> tuple[PackSource, list[Rule], list[Exemption]]:
         circular=raw.get("circular"),
         effective_from=raw.get("effective_from"),
         primary="circular" in raw,
+        circular_checked_on=raw.get("circular_checked_on"),
     )
 
     rules: list[Rule] = []

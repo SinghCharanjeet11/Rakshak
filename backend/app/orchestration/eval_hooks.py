@@ -77,8 +77,40 @@ def emit_eval(
         log.exception("eval hook failed (suppressed)")
 
 
+def flush_signals(run_id: str) -> int:
+    """Persist a run's buffered signals. Called once, when the run closes.
+
+    Batched rather than written per signal: six-plus network round trips would be added to
+    every verification for data that is observability, not a verdict. Like `emit_eval` this
+    must never raise -- losing a metric is not worth failing a completed verification.
+    """
+    try:
+        from app.store import repository
+
+        return repository.save_eval_signals(
+            run_id, [s.model_dump() for s in SINK.for_run(run_id)]
+        )
+    except Exception:  # pragma: no cover - defensive
+        log.exception("eval signal flush failed (suppressed)")
+        return 0
+
+
 def signals_for(run_id: str) -> list[EvalSignal]:
-    return SINK.for_run(run_id)
+    """In-process buffer first, falling back to the store.
+
+    The fallback is the point: signals used to live only in the emitting process, so a
+    restart erased them and an idempotent replay served a run whose evidence had vanished.
+    """
+    buffered = SINK.for_run(run_id)
+    if buffered:
+        return buffered
+    try:
+        from app.store import repository
+
+        return [EvalSignal.model_validate(r) for r in repository.get_eval_signals(run_id)]
+    except Exception:  # pragma: no cover - defensive
+        log.exception("eval signal read failed (suppressed)")
+        return []
 
 
 # --------------------------------------------------------------------------

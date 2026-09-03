@@ -79,8 +79,8 @@ Against the seed corpus, reproducible with `pytest -q`:
 | Razorpay webhook sequence (synthetic) | 7 events -> 6 actions, 3 violations; the non-action event ignored, not forced |
 | **Razorpay, real test-mode account** | **5 payments -> 5 actions, score 60.0.** A ₹20,000 payment Razorpay captured successfully fails `AFA_ABOVE_THRESHOLD`; a payment with no compliance notes fails for want of a pre-debit notice |
 | Prompt-injected log, model fully compromised | **no false PASS** (see below) |
-| Backend tests | **190 passing** (against Postgres, the engine that ships) |
-| Browser E2E tests | **23 passing** |
+| Backend tests | **209 passing** (against Postgres, the engine that ships) |
+| Browser E2E tests | **27 passing** |
 
 Single-action verdict latency (`python scripts/bench_verify.py`):
 
@@ -119,14 +119,14 @@ cp .env.example .env          # OPENAI_API_KEY is optional; see below
 cd backend
 python -m venv .venv && .venv/Scripts/activate      # or: source .venv/bin/activate
 pip install -e ".[dev]"
-pytest -q                                            # 190 passed
+pytest -q                                            # 209 passed
 uvicorn app.main:app --reload --port 8000
 
 # frontend (new terminal)
 cd frontend
 npm install
 npm run dev                                          # http://localhost:3000
-npm run test:e2e                                     # 23 browser tests (needs the backend up)
+npm run test:e2e                                     # 27 browser tests (needs the backend up)
 ```
 
 Health check: `GET http://localhost:8000/api/v1/health`
@@ -146,7 +146,7 @@ Base `/api/v1`.
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/health` | liveness, rule-pack version, unverified-value count |
+| GET | `/health` | liveness, rule-pack version, unverified-value count, circular-check age |
 | GET | `/rules` · `/rules/versions` | the rule-pack, parsed and inspectable |
 | POST | `/verify` · `/verify/batch` | verify one action / a batch |
 | GET | `/reports` · `/reports/{id}` | stored reports |
@@ -156,6 +156,16 @@ Base `/api/v1`.
 
 Responses carry `X-Correlation-Id`, `X-Run-Id`, `X-Rulepack-Version` and
 `X-Idempotent-Replay`.
+
+**Provenance.** Every rule carries `clause_text`, the cited sentence verbatim, so a reader
+can check our reading of the law instead of trusting a paragraph number. The two values
+that rest on secondary sourcing say so in that field rather than quoting anything.
+
+`python scripts/check_circulars.py` reports whether the cited circular is still current.
+It matters because `RBI/DPSS/2026-27/396` repealed eight earlier circulars in one stroke:
+a rule-pack can become confidently wrong without a byte of it changing. `/health` reports
+how long ago that was last checked. The script decides nothing and touches no verdict, and
+when it cannot parse RBI's page it says **inconclusive** rather than all-clear.
 
 **Tenancy.** Set `API_KEYS` to `key:tenant` pairs and every read is scoped to the key's
 tenant; a cross-tenant read returns **404, not 403**, so the response never confirms that
@@ -203,7 +213,8 @@ CLAUDE.md            # project brief, invariants, open decisions, status
 ## Status
 
 The deterministic core, control plane, API, store and dashboard are built, with 190 backend
-tests and 23 browser tests passing. Both formerly-open decisions are now closed, tracked in
+tests and 27 browser tests passing, run on every push by GitHub Actions against a real
+Postgres. Both formerly-open decisions are now closed, tracked in
 [CLAUDE.md](CLAUDE.md) §7:
 
 - **OPEN-1 is closed.** Rakshak runs on the OpenAI API and **deliberately does not use an agent

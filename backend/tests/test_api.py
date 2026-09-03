@@ -39,13 +39,13 @@ def test_health(client):
     body = r.json()
     assert body["status"] == "ok"
     assert body["rulepack"] == "2026.04.21-1"
-    assert body["rules_loaded"] == 6
+    assert body["rules_loaded"] == 7
 
 
 def test_rules_endpoint_exposes_clauses_and_prose(client):
     body = client.get(f"{API}/rules").json()
     assert body["circular"] == "RBI/DPSS/2026-27/396"
-    assert len(body["rules"]) == 6
+    assert len(body["rules"]) == 7
     assert len(body["exemptions"]) == 2
 
     afa = next(r for r in body["rules"] if r["id"] == "AFA_ABOVE_THRESHOLD")
@@ -377,3 +377,81 @@ def test_missing_or_unknown_key_is_401_when_keys_are_configured(client, clean_db
 def test_open_mode_needs_no_key(client, clean_db):
     """Unconfigured, the API stays open so the demo and a fresh clone need no setup."""
     assert client.get(f"{API}/reports").status_code == 200
+
+
+# --------------------------------------------------------------------------
+# provenance: clause text + circular currency
+# --------------------------------------------------------------------------
+
+
+def test_rules_endpoint_exposes_the_clause_text(client):
+    body = client.get(f"{API}/rules").json()
+    afa = next(r for r in body["rules"] if r["id"] == "AFA_ABOVE_THRESHOLD")
+    assert "without AFA up to" in afa["clause_text"]
+    assert afa["verified_on"] == "2026-09-02"
+
+
+def test_rules_endpoint_exposes_exemption_selectors(client):
+    """Without these the UI cannot say *why* an action was exempt."""
+    body = client.get(f"{API}/rules").json()
+    high = next(e for e in body["exemptions"] if e["id"] == "EXEMPT_HIGH_VALUE_CATEGORY_AFA")
+    assert high["when_category_in"] == [
+        "insurance_premium", "mutual_fund_subscription", "credit_card_bill"
+    ]
+    assert high["max_amount"] == 100000
+    assert "1,00,000" in high["clause_text"]
+
+
+def test_health_reports_how_stale_the_circular_check_is(client):
+    """A pack can go wrong without changing: the circular it cites may be repealed."""
+    body = client.get(f"{API}/health").json()
+    assert body["circular_checked_on"] == "2026-09-02"
+    assert isinstance(body["circular_check_age_days"], int)
+    assert body["circular_check_stale"] is False
+
+
+def test_eval_signals_survive_the_process_that_emitted_them(client, clean_db):
+    """They used to be in-memory only, so a restart erased them.
+
+    Two consequences, both bad: running the same log twice in a demo showed an empty
+    evidence panel the second time, and `injection_heuristic` -- the record that someone
+    attacked this run -- did not outlive the process that noticed.
+    """
+    from app.orchestration.eval_hooks import SINK, signals_for
+
+    r = _post_batch(client, seed_raw("violating_actions.json"))
+    run_id = r.headers["X-Run-Id"]
+
+    assert signals_for(run_id), "signals should exist while still buffered"
+
+    # Simulate the restart: drop everything the process was holding.
+    SINK.clear()
+    assert SINK.for_run(run_id) == []
+
+    recovered = signals_for(run_id)
+    assert recovered, "signals must be readable after the emitting process forgot them"
+    kinds = {s.kind for s in recovered}
+    assert "membrane_rejection" in kinds
+    for s in recovered:
+        assert s.run_id == run_id
+
+
+def test_persisted_signals_keep_their_meta(client, clean_db):
+    """`injection_heuristic` is worthless without which patterns matched."""
+    from app.orchestration.eval_hooks import SINK, signals_for
+
+    r = client.post(
+        f"{API}/verify/batch",
+        json={"format": "text", "payload": seed_text("injected_log.txt")},
+    )
+    # No model key in tests, so ingestion 502s -- but the injection scan runs first and
+    # its signal is exactly the one that must outlive a failed run.
+    run_id = r.headers.get("X-Run-Id")
+    assert run_id
+
+    SINK.clear()
+    recovered = {s.kind: s for s in signals_for(run_id)}
+    assert "injection_heuristic" in recovered, "a failed run still recorded the attack"
+    sig = recovered["injection_heuristic"]
+    assert sig.value == 1.0
+    assert "override_instructions" in sig.meta.get("matched", [])

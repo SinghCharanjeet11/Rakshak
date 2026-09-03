@@ -32,6 +32,12 @@ class VerifyOneBody(BaseModel):
     rulepack_version: Optional[str] = None
 
 
+def _trace_headers(exc: Exception) -> dict[str, str]:
+    """Carry the run id onto an error response when the orchestrator attached one."""
+    run_id = getattr(exc, "run_id", None)
+    return {"X-Run-Id": run_id} if run_id else {}
+
+
 async def _dispatch(
     body: VerifyBatchBody, tenant_id: str, response: Response
 ) -> Report:
@@ -48,8 +54,12 @@ async def _dispatch(
     except (RulePackError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except MembraneError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=422, detail=str(exc), headers=_trace_headers(exc)
+        ) from exc
     except LLMUnavailable as exc:
+        # The run is traceable even though it failed: /runs/{id} still serves its budget
+        # and eval signals, which is where an operator looks after a rejected log.
         raise HTTPException(
             status_code=502,
             detail=(
@@ -57,6 +67,7 @@ async def _dispatch(
                 'Submit format:"json" with structured actions to bypass parsing — '
                 "verdicts never depend on the model."
             ),
+            headers=_trace_headers(exc),
         ) from exc
 
     response.headers["X-Correlation-Id"] = outcome.run.correlation_id

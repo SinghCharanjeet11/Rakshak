@@ -1,0 +1,162 @@
+name: CI
+
+# Rakshak's claims are enforced by tests, not by prose: `test_isolation.py` walks the AST
+# to prove core/ imports no model or network, `test_membrane.py` proves a hallucinated
+# field is rejected, and the golden test pins the exact expected violation set. None of
+# that is worth anything if it only ever runs on one laptop, so it runs here on every push.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: backend (pytest)
+    runs-on: ubuntu-latest
+
+    # The suite runs against real Postgres rather than SQLite. The append-only audit trail
+    # is invariant I10 and is enforced by a database trigger; testing it on a different
+    # engine than the one deployed would not test it at all.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rakshak_ci
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rakshak_ci
+      # conftest overrides this to a throwaway schema it drops between sessions, and
+      # refuses to run at all if it resolves to `public`.
+      TEST_DB_SCHEMA: rakshak_test
+      # No test may reach a model provider. conftest blanks this too; belt and braces.
+      OPENAI_API_KEY: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Test
+        working-directory: backend
+        run: pytest -q
+
+      - name: Rule-pack loads and every verified rule quotes its clause
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          from app.core.rules_loader import load_pack
+          pack = load_pack()
+          missing = [
+              i.id
+              for i in list(pack.rules) + list(pack.exemptions)
+              if i.value_verified and not i.clause_text
+          ]
+          assert not missing, f"verified but quotes nothing: {missing}"
+          print(f"{len(pack.rules)} rules, {len(pack.exemptions)} exemptions")
+          print("unverified:", pack.unverified_values() or "none")
+          PY
+
+  frontend:
+    name: frontend (typecheck, build, e2e)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rakshak_ci
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rakshak_ci
+      OPENAI_API_KEY: ""
+      NEXT_PUBLIC_API_BASE: http://localhost:8000/api/v1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend (the E2E suite drives the real stack)
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Start backend
+        working-directory: backend
+        run: |
+          python -m uvicorn app.main:app --port 8000 &
+          for i in $(seq 1 40); do
+            curl -sf http://localhost:8000/api/v1/health >/dev/null && exit 0
+            sleep 1
+          done
+          echo "backend did not become healthy" >&2
+          exit 1
+
+      - name: Install browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E
+        working-directory: frontend
+        run: npx playwright test --reporter=line
+
+      - name: Upload failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: frontend/test-results/
+          retention-days: 7

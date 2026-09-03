@@ -78,6 +78,8 @@ def clean_db():
 
     with connect() as conn:
         conn.execute("DELETE FROM raw_logs")
+        # Before runs: eval_signals carries an FK to it.
+        conn.execute("DELETE FROM eval_signals")
         conn.execute("DELETE FROM reports")
         # action_audit is append-only by trigger; dropping the table is the only way
         # to reset it, and having to do this in a test is the proof the trigger works.

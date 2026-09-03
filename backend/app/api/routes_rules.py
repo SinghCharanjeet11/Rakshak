@@ -55,6 +55,10 @@ def get_rules(version: Optional[str] = Query(default=None)) -> dict[str, object]
                 "condition": r.condition.model_dump(),
                 "condition_prose": _describe(r.condition),
                 "value_verified": r.value_verified,
+                "verified_on": r.verified_on,
+                # Display-only evidence: the reader compares `clause_text` against
+                # `condition` and decides for themselves whether we read the law right.
+                "clause_text": r.clause_text,
             }
             for r in pack.rules
         ],
@@ -64,9 +68,13 @@ def get_rules(version: Optional[str] = Query(default=None)) -> dict[str, object]
                 "title": e.title,
                 "exempts": e.exempts,
                 "when_mcc_in": e.when_mcc_in,
+                "when_category_in": [c.value for c in e.when_category_in],
+                "max_amount": e.max_amount,
                 "clause": e.clause,
                 "source": e.source,
                 "value_verified": e.value_verified,
+                "verified_on": e.verified_on,
+                "clause_text": e.clause_text,
             }
             for e in pack.exemptions
         ],

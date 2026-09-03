@@ -37,7 +37,7 @@ from app.core.run import Budget, BudgetExceeded, Run, RunStatus
 from app.core.scoring import compute, summarize
 from app.llm import explanation_agent, ingestion_agent
 from app.llm._provider import LLMUnavailable, Usage
-from app.orchestration.eval_hooks import emit_eval, scan_for_injection
+from app.orchestration.eval_hooks import emit_eval, flush_signals, scan_for_injection
 from app.orchestration.membrane import MembraneError, validate_membrane_detailed
 from app.store import repository
 
@@ -128,6 +128,17 @@ def _assemble(
         correlation_id=run.correlation_id,
         run_id=run.id,
     )
+
+
+def _close(run: Run, status: RunStatus) -> Run:
+    """Flush this run's eval signals, then close it.
+
+    Routed through one helper so the two can never drift apart. Signals are flushed on the
+    failure paths too, and deliberately: a run that halted on budget or blew up is exactly
+    when `injection_heuristic` and `membrane_rejection` are worth having afterwards.
+    """
+    flush_signals(run.id)
+    return repository.close_run(run, status)
 
 
 async def run_verification(req: VerifyRequest) -> RunOutcome:
@@ -244,7 +255,7 @@ async def run_verification(req: VerifyRequest) -> RunOutcome:
         report = _assemble(run, actions, violations, exemptions_applied)
         repository.save_report(report, run.id)
         repository.append_audit(run.id, actions, violations)
-        repository.close_run(run, RunStatus.DONE)
+        _close(run, RunStatus.DONE)
         return RunOutcome(report=report, run=run)
 
     except BudgetExceeded as exc:
@@ -253,16 +264,20 @@ async def run_verification(req: VerifyRequest) -> RunOutcome:
         repository.save_report(report, run.id)
         if actions:
             repository.append_audit(run.id, actions, violations)
-        repository.close_run(run, RunStatus.HALTED_BUDGET)
+        _close(run, RunStatus.HALTED_BUDGET)
         return RunOutcome(report=report, run=run)
 
-    except (MembraneError, LLMUnavailable):
-        repository.close_run(run, RunStatus.FAILED)
+    except (MembraneError, LLMUnavailable) as exc:
+        _close(run, RunStatus.FAILED)
+        # Attach the run id so the API can hand it back. The run exists, its signals were
+        # just flushed, and on an injected log `injection_heuristic` has already fired --
+        # a caller told only "502" has no way to reach the record that an attack happened.
+        exc.run_id = run.id  # type: ignore[attr-defined]
         raise
 
     except Exception:
         log.exception("run=%s failed", run.id)
-        repository.close_run(run, RunStatus.FAILED)
+        _close(run, RunStatus.FAILED)
         raise
 
 

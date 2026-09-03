@@ -72,6 +72,12 @@ class Action(BaseModel):
     channel: Optional[Channel] = None
     dispute_active: Optional[bool] = None
     consent_opted_out: Optional[bool] = None
+    # Deliberately NOT the same field as `consent_opted_out`. §6(c) of the 2026 framework
+    # grants an opt-out from "any particular transaction or the e-mandate" — a debit
+    # instruction — whereas `consent_opted_out` records an outreach/DND preference. Sharing
+    # one field would fail a lawful debit for a customer who merely opted out of marketing
+    # SMS, which is the false-positive class §8(b) already caught us on once.
+    mandate_opted_out: Optional[bool] = None
 
 
 class Severity(str, Enum):

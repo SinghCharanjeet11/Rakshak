@@ -79,6 +79,25 @@ CREATE TABLE IF NOT EXISTS raw_logs (
   content TEXT NOT NULL
 );
 
+-- Eval signals were in-memory only, which made them the one part of the control plane a
+-- restart erased. That is a demo trap (run the same log twice and the evidence panel is
+-- empty the second time) and, worse, it meant `injection_heuristic` -- the record that
+-- someone attacked this run -- did not survive the process that observed it.
+--
+-- Not append-only: unlike action_audit these are observability, not a compliance artifact,
+-- and a replay legitimately re-emits them.
+CREATE TABLE IF NOT EXISTS eval_signals (
+  id BIGSERIAL PRIMARY KEY,
+  run_id TEXT NOT NULL REFERENCES runs(id),
+  turn INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  value DOUBLE PRECISION NOT NULL,
+  meta TEXT NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_eval_run ON eval_signals(run_id, id);
+
 CREATE INDEX IF NOT EXISTS idx_reports_created ON reports(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_run ON action_audit(run_id);
 

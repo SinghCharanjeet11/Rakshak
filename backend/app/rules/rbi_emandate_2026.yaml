@@ -14,6 +14,9 @@ version: "2026.04.21-1"
 source: "RBI Digital Payments E-mandate Framework 2026"
 circular: "RBI/DPSS/2026-27/396"
 effective_from: "2026-04-21"
+# Refreshed by scripts/check_circulars.py. /health reports how stale this is, because a
+# pack that cites a repealed circular is wrong without any of its own text changing.
+circular_checked_on: "2026-09-02"
 
 rules:
   # §6(a) verbatim: "An issuer shall send a pre-transaction notification to the customer,
@@ -23,6 +26,9 @@ rules:
     applies_to: [debit]
     severity: critical
     clause: "RBI/DPSS/2026-27/396 §6(a)"
+    clause_text: >-
+      An issuer shall send a pre-transaction notification to the customer, at least
+      24 hours prior to the actual charge / debit.
     value_verified: true
     verified_on: "2026-09-02"
     condition:
@@ -41,6 +47,9 @@ rules:
     applies_to: [debit]
     severity: critical
     clause: "RBI/DPSS/2026-27/396 §8(a)"
+    clause_text: >-
+      All recurring transactions may be authorised without AFA up to ₹15,000/- per
+      transaction. Transactions above this amount shall be subject to AFA.
     value_verified: true
     verified_on: "2026-09-02"
     condition:
@@ -48,6 +57,32 @@ rules:
       amount_field: amount
       threshold: 15000
       required_flag: afa_present
+
+  # §6(c) verbatim: "The issuer shall provide a customer with a facility to opt-out of any
+  # particular transaction or the e-mandate. Any such opt-out shall be validated by the
+  # issuer using AFA."
+  #
+  # ADDED 2026-09-02. The pack encoded an opt-out rule for *contact* (RESPECT_OPT_OUT, an
+  # unverified TRAI/Fair-Practices norm) but nothing for the opt-out the circular actually
+  # grants, which is from a debit. That was a genuine coverage gap: an agent could debit a
+  # customer who had explicitly opted out of that transaction and Rakshak would pass it.
+  #
+  # Reads `mandate_opted_out`, never `consent_opted_out`. Conflating the two would fail a
+  # lawful debit because the customer unsubscribed from marketing SMS.
+  - id: NO_DEBIT_AFTER_OPT_OUT
+    title: "Do not debit after the customer opted out of the transaction or mandate"
+    applies_to: [debit, mandate_retry]
+    severity: critical
+    clause: "RBI/DPSS/2026-27/396 §6(c)"
+    clause_text: >-
+      The issuer shall provide a customer with a facility to opt-out of any particular
+      transaction or the e-mandate. Any such opt-out shall be validated by the issuer
+      using AFA. An intimation to this effect shall be sent to the customer.
+    value_verified: true
+    verified_on: "2026-09-02"
+    condition:
+      kind: flag_must_be_false
+      field: mandate_opted_out
 
   # §6(d) verbatim: "Pre-transaction notification is not required for e-mandates
   # registered to auto-replenish balances of FASTag, and National Common Mobility Card
@@ -64,6 +99,9 @@ rules:
     exempts: [PRE_DEBIT_NOTICE_24H]
     when_mcc_in: ["4784"]
     clause: "RBI/DPSS/2026-27/396 §6(d)"
+    clause_text: >-
+      Pre-transaction notification is not required for e-mandates registered to
+      auto-replenish balances of FASTag, and National Common Mobility Card (NCMC).
     value_verified: true
     verified_on: "2026-09-02"
 
@@ -81,5 +119,8 @@ rules:
     when_category_in: [insurance_premium, mutual_fund_subscription, credit_card_bill]
     max_amount: 100000
     clause: "RBI/DPSS/2026-27/396 §8(b)"
+    clause_text: >-
+      Payment of insurance premiums, subscription to mutual funds, and credit card
+      bill payments may be made without AFA up to ₹1,00,000/- per transaction.
     value_verified: true
     verified_on: "2026-09-02"

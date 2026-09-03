@@ -6,6 +6,98 @@ import { CopyButton, Segmented, SeverityTag, WarnNote } from "./ui";
 
 type Scope = "all" | "debit" | "mandate_retry" | "contact" | "notify";
 
+/** Marks text that is a placeholder rather than quoted law. Kept in step with the string
+ *  the rule-pack uses, so an unverified value can never be mistaken for a citation. */
+const NOT_PRIMARY = "NOT QUOTED FROM THE PRIMARY SOURCE";
+
+/**
+ * The cited clause, verbatim, so the reader can check our reading of the law rather than
+ * trust a paragraph number. Rendered as a blockquote because it is *someone else's words*
+ * — the visual distinction from our own prose is the point, not decoration.
+ *
+ * Text that is not quoted law is styled as a warning instead, since a placeholder shown in
+ * quotation marks would assert exactly the authority the flag exists to deny.
+ */
+function ClauseText({
+  text,
+  verifiedOn,
+}: {
+  text: string | null;
+  verifiedOn?: string | null;
+}) {
+  if (!text) return null;
+  const quoted = !text.startsWith(NOT_PRIMARY);
+
+  if (!quoted) {
+    return (
+      <p className="mt-3 rounded border border-warn-border bg-warn-bg px-2 py-1.5 text-[11px] leading-relaxed text-warn-fg">
+        {text.replace(`${NOT_PRIMARY}.`, "").trim()}
+      </p>
+    );
+  }
+
+  return (
+    <figure className="mt-3">
+      <blockquote className="border-l-2 border-brand-ring/60 pl-2.5 text-[11px] italic leading-relaxed text-muted">
+        {text}
+      </blockquote>
+      {verifiedOn && (
+        <figcaption className="mt-1 pl-2.5 text-[10px] text-faint">
+          read in the circular on {verifiedOn}
+        </figcaption>
+      )}
+    </figure>
+  );
+}
+
+/**
+ * Renders an exemption's selectors as a sentence.
+ *
+ * Selectors are ANDed and any may be absent: §6(d) matches on MCC alone, §8(b) on category
+ * plus an amount ceiling. The previous version hard-coded "MCC is {list}", which rendered
+ * the literal text "MCC is ." for a category-only exemption.
+ */
+function describeSelectors(e: {
+  when_mcc_in: string[];
+  when_category_in: string[];
+  max_amount: number | null;
+}) {
+  const parts: React.ReactNode[] = [];
+  if (e.when_mcc_in.length) {
+    parts.push(
+      <span key="mcc">
+        MCC is <span className="font-mono">{e.when_mcc_in.join(" or ")}</span>
+      </span>,
+    );
+  }
+  if (e.when_category_in.length) {
+    parts.push(
+      <span key="cat">
+        the category is{" "}
+        <span className="font-mono">{e.when_category_in.join(" or ")}</span>
+      </span>,
+    );
+  }
+  if (e.max_amount !== null) {
+    parts.push(
+      <span key="amt">
+        the amount is at most{" "}
+        <span className="font-mono tabular-nums">
+          ₹{e.max_amount.toLocaleString("en-IN")}
+        </span>
+      </span>,
+    );
+  }
+  if (!parts.length) return <span>every action matches</span>;
+
+  return parts.map((p, i) => (
+    <span key={i}>
+      {i > 0 && (i === parts.length - 1 ? " and " : ", ")}
+      {p}
+    </span>
+  ));
+}
+
 /**
  * Communicates "these are inspectable, versioned, and cite the law" (04-frontend.md §2).
  *
@@ -24,8 +116,10 @@ export function RulePackViewer({ pack }: { pack: RulePackView }) {
       .filter(
         (r) =>
           !needle ||
-          [r.id, r.title, r.clause, r.condition_prose, r.source].some((f) =>
-            f.toLowerCase().includes(needle),
+          // clause_text is searchable so an officer can find a rule by the wording of the
+          // law they remember, not only by our paraphrase of it.
+          [r.id, r.title, r.clause, r.condition_prose, r.source, r.clause_text ?? ""].some(
+            (f) => f.toLowerCase().includes(needle),
           ),
       );
   }, [pack.rules, query, scope]);
@@ -174,6 +268,8 @@ export function RulePackViewer({ pack }: { pack: RulePackView }) {
                     <dd className="clause mt-0.5">{r.source}</dd>
                   </div>
                 </dl>
+
+                <ClauseText text={r.clause_text} verifiedOn={r.verified_on} />
               </article>
             ))}
           </div>
@@ -193,14 +289,15 @@ export function RulePackViewer({ pack }: { pack: RulePackView }) {
               <span className="font-mono text-xs text-muted">{e.id}</span>
               <h4 className="mt-2 text-sm font-medium text-body">{e.title}</h4>
               <p className="mt-2 text-xs leading-relaxed text-muted">
-                Suppresses <span className="font-mono">{e.exempts.join(", ")}</span> when
-                MCC is <span className="font-mono">{e.when_mcc_in.join(" or ")}</span>.
-                It suppresses those rules only — nothing else is excused.
+                Suppresses <span className="font-mono">{e.exempts.join(", ")}</span> when{" "}
+                {describeSelectors(e)}. It suppresses those rules only — nothing else is
+                excused.
               </p>
               <div className="mt-3 text-xs">
                 <div className="label">Clause</div>
                 <div className="mt-0.5 font-mono text-body">{e.clause}</div>
               </div>
+              <ClauseText text={e.clause_text} />
             </article>
           ))}
         </div>

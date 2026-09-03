@@ -30,6 +30,9 @@ export interface Action {
   debit_due_at?: string | null;
   afa_present?: boolean | null;
   mcc?: string | null;
+  /** §8(b) categories. Closed on the backend, so an unknown value is a membrane
+   *  rejection rather than something the UI ever has to render. */
+  category?: "insurance_premium" | "mutual_fund_subscription" | "credit_card_bill" | null;
   channel?: string | null;
   dispute_active?: boolean | null;
   consent_opted_out?: boolean | null;
@@ -143,16 +146,29 @@ export interface RuleView {
   condition: Record<string, unknown>;
   condition_prose: string;
   value_verified: boolean;
+  verified_on: string | null;
+  /**
+   * The cited clause, verbatim. Display-only evidence: the reader compares it against
+   * `condition_prose` and judges for themselves whether we read the law correctly,
+   * rather than trusting a paragraph number they cannot check.
+   */
+  clause_text: string | null;
 }
 
 export interface ExemptionView {
   id: string;
   title: string;
   exempts: string[];
+  /** Selectors are ANDed, and any of them may be empty — §6(d) matches on MCC alone,
+   *  §8(b) on category plus an amount ceiling. Rendering must not assume MCC exists. */
   when_mcc_in: string[];
+  when_category_in: string[];
+  max_amount: number | null;
   clause: string;
   source: string;
   value_verified: boolean;
+  verified_on: string | null;
+  clause_text: string | null;
 }
 
 export interface RulePackView {
@@ -254,6 +270,11 @@ export const getHealth = () =>
     rules_loaded: number;
     llm_enabled: boolean;
     unverified_rule_values: string[];
+    /** A pack can go wrong without changing: the circular it cites may be amended or
+     *  repealed. These report when that was last confirmed. */
+    circular_checked_on: string | null;
+    circular_check_age_days: number | null;
+    circular_check_stale: boolean;
   }>("/health");
 
 // ---------------------------------------------------------------------------

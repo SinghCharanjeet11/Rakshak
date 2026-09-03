@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from app.core.models import ActionType
+from app.core.models import Action, ActionType
 from app.core.rules_loader import (
     RulePackError,
     available_versions,
@@ -38,6 +38,7 @@ def test_the_shipped_pack_loads(pack):
     assert {r.id for r in pack.rules} == {
         "PRE_DEBIT_NOTICE_24H",
         "AFA_ABOVE_THRESHOLD",
+        "NO_DEBIT_AFTER_OPT_OUT",
         "RETRY_CAP_PER_WINDOW",
         "NO_RETRY_UNDER_DISPUTE",
         "RESPECT_OPT_OUT",
@@ -60,7 +61,10 @@ def test_every_rule_carries_a_clause_and_source(pack):
 def test_rules_for_filters_by_action_type(pack):
     debit_rules = {r.id for r in pack.rules_for(ActionType.DEBIT)}
     assert debit_rules == {
-        "PRE_DEBIT_NOTICE_24H", "AFA_ABOVE_THRESHOLD", "NO_RETRY_UNDER_DISPUTE"
+        "PRE_DEBIT_NOTICE_24H",
+        "AFA_ABOVE_THRESHOLD",
+        "NO_RETRY_UNDER_DISPUTE",
+        "NO_DEBIT_AFTER_OPT_OUT",
     }
     assert pack.rules_for(ActionType.ESCALATE) == []
 
@@ -238,3 +242,47 @@ def test_high_value_category_is_exempt_from_afa_up_to_one_lakh(pack):
     assert ex.suppresses("AFA_ABOVE_THRESHOLD", over_cap) is None, "the ₹1L cap still binds"
     assert ex.suppresses("AFA_ABOVE_THRESHOLD", uncategorised) is None
     assert ex.suppresses("PRE_DEBIT_NOTICE_24H", premium) is None, "waives AFA only"
+
+
+def test_verified_rules_carry_the_clause_text_they_cite(pack):
+    """A citation nobody can check is an assertion.
+
+    Every value marked verified was read in the circular, so the sentence it was read
+    from must travel with it. This is what lets a reviewer confirm the condition matches
+    the law instead of taking our word for the paragraph number.
+    """
+    for item in list(pack.rules) + list(pack.exemptions):
+        if item.value_verified and item.clause.startswith("RBI/DPSS/2026-27/396"):
+            assert item.clause_text, f"{item.id} cites {item.clause} but quotes nothing"
+            assert len(item.clause_text) > 40, f"{item.id} clause_text looks truncated"
+
+
+def test_unverified_rules_say_so_in_their_clause_text(pack):
+    """The two secondary-sourced values must not read like quoted law."""
+    for rule in pack.rules:
+        if not rule.value_verified and rule.clause_text:
+            assert "NOT QUOTED FROM THE PRIMARY SOURCE" in rule.clause_text
+
+
+def test_clause_text_cannot_reach_a_verdict():
+    """Invariant I8's reasoning applied to provenance: it is evidence, never input.
+
+    Blanking every clause_text must not change a single verdict.
+
+    Loads its own pack rather than taking the session fixture, because this test mutates
+    what it is given and the fixture is shared for the whole run.
+    """
+    import json
+    from pathlib import Path
+
+    from app.core.rule_engine import evaluate
+
+    seed = Path(__file__).resolve().parent.parent / "app" / "seed" / "violating_actions.json"
+    actions = [Action.model_validate(a) for a in json.loads(seed.read_text(encoding="utf-8"))]
+
+    scratch = load_pack("2026.04.21-1")
+    before = {(v.action_id, v.rule_id) for v in evaluate(actions, scratch)}
+    for item in list(scratch.rules) + list(scratch.exemptions):
+        item.clause_text = None
+    after = {(v.action_id, v.rule_id) for v in evaluate(actions, scratch)}
+    assert before == after

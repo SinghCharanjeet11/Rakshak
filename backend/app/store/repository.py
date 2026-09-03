@@ -262,6 +262,65 @@ def save_raw_log(run_id: str, fmt: str, content: Any) -> None:
         )
 
 
+# --------------------------------------------------------------------------
+# eval signals
+# --------------------------------------------------------------------------
+
+
+def save_eval_signals(run_id: str, signals: list[dict[str, Any]]) -> int:
+    """Persist a run's signals in one round trip.
+
+    Batched deliberately: signals are emitted six or more times per run, and a write per
+    signal would add a network round trip each to every verification. They are buffered in
+    the process and flushed once when the run closes.
+    """
+    if not signals:
+        return 0
+    now = _now()
+    rows = [
+        (
+            run_id,
+            int(s.get("turn", 0)),
+            str(s.get("kind", "")),
+            float(s.get("value", 0.0)),
+            json.dumps(s.get("meta") or {}, default=str),
+            now,
+        )
+        for s in signals
+    ]
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.executemany(
+                """INSERT INTO eval_signals (run_id, turn, kind, value, meta, created_at)
+                   VALUES (%s,%s,%s,%s,%s,%s)""",
+                rows,
+            )
+    return len(rows)
+
+
+def get_eval_signals(run_id: str) -> list[dict[str, Any]]:
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT turn, kind, value, meta FROM eval_signals WHERE run_id=%s ORDER BY id",
+            (run_id,),
+        ).fetchall()
+    return [
+        {
+            "run_id": run_id,
+            "turn": r["turn"],
+            "kind": r["kind"],
+            "value": r["value"],
+            "meta": json.loads(r["meta"] or "{}"),
+        }
+        for r in rows
+    ]
+
+
+# --------------------------------------------------------------------------
+# raw_logs
+# --------------------------------------------------------------------------
+
+
 def get_raw_log(run_id: str) -> Optional[dict[str, str]]:
     with connect() as conn:
         row = conn.execute(

@@ -29,28 +29,62 @@ rules:
     applies_to: [mandate_retry]
     severity: high
     clause: "NPCI UPI Autopay mandate execution rules, effective 2025-08-01"
+    clause_text: >-
+      NOT QUOTED FROM THE PRIMARY SOURCE. Multiple consistent secondary sources report
+      that from 1 August 2025 NPCI permits a maximum of four attempts per mandate (one
+      original execution plus three retries), after which the mandate is auto-cancelled.
+      Replace this with the circular's own wording once obtained, and set value_verified.
     value_verified: false
     condition:
       kind: max_value
       field: retry_index
       max: 4
 
+  # DOWNGRADED 2026-09-02. Previously `value_verified: true` while citing the placeholder
+  # string "NPCI mandate + dispute handling", which pointed at no readable document.
+  #
+  # RBI/DPSS/2026-27/396 §9 was checked directly and does NOT support this rule. §9 requires
+  # issuers to run a dispute *redressal* system and extends RBI's unauthorised-transaction
+  # liability rules to e-mandates; it says nothing about suspending collection while a
+  # dispute is open. The rule is sound operational conduct and is retained, but it is an
+  # industry norm here, not a cited regulatory requirement, and the flag now says so.
   - id: NO_RETRY_UNDER_DISPUTE
     title: "Do not retry a payment under active dispute"
     applies_to: [mandate_retry, debit]
     severity: critical
-    clause: "NPCI mandate + dispute handling"
-    value_verified: true
+    clause: "Operational norm — dispute handling (no primary source located)"
+    clause_text: >-
+      NOT QUOTED FROM THE PRIMARY SOURCE. RBI/DPSS/2026-27/396 §9 covers dispute redressal
+      and customer liability for unauthorised transactions, and does not prohibit retrying
+      a payment while a dispute is open. This rule encodes standard collections practice.
+      Locate a chargeback or dispute-handling rule that mandates it, or keep it flagged.
+    value_verified: false
     condition:
       kind: flag_must_be_false
       field: dispute_active
 
+  # DOWNGRADED 2026-09-02. Previously `value_verified: true` citing the placeholder "consent
+  # / DND", which named no document at all.
+  #
+  # RBI/DPSS/2026-27/396 §6(c) does grant an opt-out right, but of "any particular
+  # transaction or the e-mandate" — i.e. opting out of a *debit*. This rule governs
+  # *contact and notification*, which is TRAI's unsolicited-communication territory and the
+  # Fair Practices Code, not the e-mandate circular. Citing §6(c) here would be exactly the
+  # kind of over-claim the verified flag exists to prevent.
+  #
+  # NOTE: §6(c) would support a genuinely cited *separate* rule — do not debit after the
+  # customer opted out of that transaction. That is worth adding; it is not this rule.
   - id: RESPECT_OPT_OUT
     title: "Do not contact a customer who has opted out"
     applies_to: [contact, notify]
     severity: high
-    clause: "consent / DND"
-    value_verified: true
+    clause: "Customer consent / DND — TRAI UCC regulations and RBI Fair Practices Code"
+    clause_text: >-
+      NOT QUOTED FROM THE PRIMARY SOURCE. Contact consent is governed by TRAI's
+      unsolicited-commercial-communication regulations and the RBI Fair Practices Code, not
+      by RBI/DPSS/2026-27/396. Neither was read in primary form. §6(c) of the circular
+      grants an opt-out from a transaction or mandate, which is a different obligation.
+    value_verified: false
     condition:
       kind: flag_must_be_false
       field: consent_opted_out
@@ -70,6 +104,10 @@ rules:
     applies_to: [contact]
     severity: medium
     clause: "RBI Fair Practices Code — recovery agent contact hours"
+    clause_text: >-
+      NOT QUOTED FROM THE PRIMARY SOURCE. Multiple consistent secondary sources report
+      that recovery agents may contact borrowers only between 08:00 and 19:00. Replace
+      this with the Fair Practices Code wording once obtained, and set value_verified.
     value_verified: false
     condition:
       kind: timestamp_hour_between

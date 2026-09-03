@@ -324,3 +324,56 @@ def test_summary_names_the_most_severe_rule(violating_actions, pack):
 def test_summary_of_a_clean_batch_says_so(clean_actions, pack):
     result = compute(clean_actions, [])
     assert "Fully compliant" in summarize(result, [])
+
+
+# --------------------------------------------------------------------------
+# NO_DEBIT_AFTER_OPT_OUT — §6(c), added 2026-09-02
+# --------------------------------------------------------------------------
+
+
+def _lawful_debit(**over):
+    """A debit that breaks nothing, so a test can isolate the one rule it is about.
+
+    Notice fields are required: a debit with no evidence of a pre-debit notice correctly
+    fails PRE_DEBIT_NOTICE_24H, which would otherwise mask what these tests assert.
+    """
+    base = dict(
+        type="debit",
+        amount=500.0,
+        notice_sent_at=datetime(2026, 8, 19, 10, 0, tzinfo=IST),
+        debit_due_at=datetime(2026, 8, 20, 12, 0, tzinfo=IST),
+    )
+    base.update(over)
+    return make_action(**base)
+
+
+def test_debit_after_mandate_opt_out_fails(pack):
+    """The opt-out the circular actually grants is from a debit, not from contact."""
+    a = _lawful_debit(mandate_opted_out=True)
+    v = evaluate([a], pack)
+    assert [x.rule_id for x in v] == ["NO_DEBIT_AFTER_OPT_OUT"]
+    assert v[0].clause == "RBI/DPSS/2026-27/396 §6(c)"
+    assert v[0].severity.value == "critical"
+
+
+def test_contact_opt_out_does_not_block_a_lawful_debit(pack):
+    """The false positive this rule was deliberately kept separate to avoid.
+
+    A customer who unsubscribed from marketing SMS has `consent_opted_out=true` and has NOT
+    opted out of the mandate. Debiting them is lawful, and sharing one field between the
+    two rules would have failed it.
+    """
+    a = _lawful_debit(consent_opted_out=True)
+    assert [x.rule_id for x in evaluate([a], pack)] == []
+
+
+def test_mandate_opt_out_does_not_fire_on_a_contact(pack):
+    """RESPECT_OPT_OUT covers outreach; this rule must not double up on it."""
+    a = make_action(type="contact", channel="sms", mandate_opted_out=True)
+    assert "NO_DEBIT_AFTER_OPT_OUT" not in {x.rule_id for x in evaluate([a], pack)}
+
+
+def test_absent_opt_out_flag_passes(pack):
+    """A sparse log is the norm; a missing flag is not an opt-out."""
+    a = _lawful_debit()
+    assert "NO_DEBIT_AFTER_OPT_OUT" not in {x.rule_id for x in evaluate([a], pack)}

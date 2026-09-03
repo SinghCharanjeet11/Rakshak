@@ -26,6 +26,10 @@ const raleway = Raleway({
 });
 
 export const metadata: Metadata = {
+  // Social images are resolved against this. Without it Next falls back to localhost:3000
+  // and every shared link previews a dead image once deployed, so it is set from the
+  // environment with the dev origin as the fallback rather than left to warn on each build.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   // Matches the tagline baked into the logo artwork. The PNG cannot be edited, so the
   // copy standardises on it rather than the other way round.
   title: "Rakshak — Compliance for AI payment agents",
