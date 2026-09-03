@@ -1,0 +1,14 @@
+# Critical, not cosmetic: the Dockerfile runs `npm install` and then `COPY . .`, so
+# without this the host's Windows-native node_modules would overwrite the Linux ones
+# installed in the image and the build would produce a broken artifact. It also keeps
+# 380MB of node_modules and .next out of the context.
+node_modules/
+.next/
+out/
+.env
+.env.*
+test-results/
+playwright-report/
+blob-report/
+tsconfig.tsbuildinfo
+npm-debug.log*
