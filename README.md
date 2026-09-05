@@ -16,6 +16,19 @@ the 24-hour notice, skip AFA above ₹15,000. Rakshak is the layer that checks.
 
 Report-only by design. It flags and cites; it never executes, blocks, or reverses a payment.
 
+### Try it
+
+| | |
+|---|---|
+| **Live dashboard** | https://rakshak-liart-eight.vercel.app |
+| **API** | https://rakshak-production-b791.up.railway.app/api/v1/health |
+
+The deployed instance runs **with no model key**, which is the architecture rather than a
+limitation: structured JSON and Razorpay webhooks verify end to end without one, and the
+dashboard's model-layer tile reads *"not needed"* instead of showing an error. Only rule
+*authoring* needs a model. A key is deliberately not deployed, because the API is open so
+anyone can call it — and a key on an open endpoint is money any stranger can spend.
+
 ---
 
 ## The one architectural idea
@@ -61,6 +74,7 @@ Ten invariants hold this together; these four are enforced by tests that fail th
 | A hallucinated field is *rejected*, never silently dropped | `Action` is `extra="forbid"`; `tests/test_membrane.py` |
 | The ingestion agent has exactly one declared tool; the explainer has zero | `tests/test_least_privilege.py` |
 | The audit trail is append-only | a Postgres trigger raises on UPDATE/DELETE |
+| A condition may only name a field that exists on `Action` | checked at pack load *and* when the drafting agent proposes a rule |
 
 Plus the golden batch test, which asserts the *exact* expected violation set over the seed
 data, the regression trap that fires if any rule silently changes.
@@ -79,7 +93,7 @@ Against the seed corpus, reproducible with `pytest -q`:
 | Razorpay webhook sequence (synthetic) | 7 events -> 6 actions, 3 violations; the non-action event ignored, not forced |
 | **Razorpay, real test-mode account** | **5 payments -> 5 actions, score 60.0.** A ₹20,000 payment Razorpay captured successfully fails `AFA_ABOVE_THRESHOLD`; a payment with no compliance notes fails for want of a pre-debit notice |
 | Prompt-injected log, model fully compromised | **no false PASS** (see below) |
-| Backend tests | **227 passing** (against Postgres, the engine that ships) |
+| Backend tests | **241 passing** (against Postgres, the engine that ships) |
 | Browser E2E tests | **27 passing** |
 
 Single-action verdict latency (`python scripts/bench_verify.py`):
@@ -213,10 +227,9 @@ CLAUDE.md            # project brief, invariants, open decisions, status
 
 ## Status
 
-The deterministic core, control plane, API, store and dashboard are built, with 190 backend
-tests and 27 browser tests passing, run on every push by GitHub Actions against a real
-Postgres. Both formerly-open decisions are now closed, tracked in
-[CLAUDE.md](CLAUDE.md) §7:
+The deterministic core, control plane, API, store and dashboard are built and deployed, with
+**241 backend tests and 27 browser tests passing**, run on every push by GitHub Actions
+against a real Postgres. Open decisions are tracked in [CLAUDE.md](CLAUDE.md) §7:
 
 - **OPEN-1 is closed.** Rakshak runs on the OpenAI API and **deliberately does not use an agent
   harness.** The model layer is a single stateless JSON call with zero tools declared to the
@@ -229,7 +242,30 @@ Postgres. Both formerly-open decisions are now closed, tracked in
   breaches, a retry cap off by one against NPCI's 4-attempt rule, and contact hours wrong at both
   ends. All three are fixed.
 
-  Two values, the NPCI retry cap and the Fair Practices Code contact hours, were corrected
-  from consistent secondary sources but **remain `value_verified: false`**, because the primary
-  documents have not been read. Corrected is not the same as verified, and `/health`, the
-  dashboard and the rule-pack screen all still say so rather than hiding it.
+  **Re-verified independently on 2026-09-05.** Every clause the primary pack cites was read
+  again against the circular as published on rbi.org.in and matched verbatim. Each rule now
+  carries `verified_against` — the URL it was read at — which the rule-pack screen renders as
+  a *"read it yourself"* link. A verification date nobody can check is an assertion; a link is
+  evidence.
+
+  `QUIET_HOURS` moved to verified once its primary instrument was located: **RBI/2022-23/108
+  ¶2** (12 August 2022) quotes the 08:00/19:00 window verbatim, confirming the earlier
+  correction at both ends. It declares its own `source` rather than inheriting the NPCI pack's,
+  since the obligation is RBI's.
+
+  **Three values remain unverified** and are labelled as such. All three were confirmed
+  *absent* from the e-mandate circular, so citing it for them would have been an over-claim —
+  which is the failure the flag exists to prevent. Corrected is not the same as verified, and
+  `/health`, the dashboard and the rule-pack screen all still say so rather than hiding it.
+- **A rule could name a field that does not exist.** The closed vocabulary stopped an invented
+  condition *kind*; nothing checked the *operands*. Every evaluator reads them with
+  `getattr(action, name, None)`, so an invented field never errors — it resolves to `None` for
+  every action, and under `if_amount_gt_then_flag` a `None` flag reads as "not set". A rule with
+  a typo'd `required_flag` therefore fails **every** action above its threshold and cites
+  `AFA=missing`: a silent false-positive generator that arrives looking like a working rule.
+
+  Found by using the drafting agent for real rather than through a fixture — asked to encode a
+  cross-border AFA clause it proposed `required_flag: AFA` where the field is `afa_present`,
+  and the pack accepted it. The drafting prompt already enumerates the valid fields and forbids
+  inventing one, which is exactly the point: **a prompt is not a control.** Operand names are
+  now checked against `Action.model_fields` in the loader and in the drafting agent.
