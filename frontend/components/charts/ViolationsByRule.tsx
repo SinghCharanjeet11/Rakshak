@@ -71,25 +71,29 @@ export function ViolationsByRule({ report }: { report: Report }) {
                       {r.n}
                     </span>
                   </div>
-                  <svg
-                    viewBox="0 0 100 6"
-                    preserveAspectRatio="none"
-                    className="mt-1 h-1.5 w-full overflow-visible"
+                  {/*
+                    Plain elements rather than an SVG. A `viewBox="0 0 100 6"` with
+                    `preserveAspectRatio="none"` stretches the coordinate system by however
+                    wide the card happens to be — roughly 7x here — and `rx` stretches with
+                    it, so the caps rendered as long tapered wedges instead of round ends.
+                    In CSS the radius stays in real pixels at any width.
+
+                    Square at the baseline, rounded only at the data end: the bar reads as
+                    growing out of the left axis rather than floating free of it.
+                  */}
+                  <div
+                    className="mt-1 h-1.5 w-full rounded-r-full bg-track"
                     role="img"
                     aria-label={`${r.rule_id}: ${r.n}`}
                   >
-                    <rect x={0} y={0} width={100} height={6} rx={3} fill="var(--track)" />
-                    <rect
-                      x={0}
-                      y={0}
-                      width={Math.max(2, (r.n / max) * 100)}
-                      height={6}
-                      rx={3}
-                      fill={SEVERITY_VAR[r.severity]}
-                      // grows from the axis, so the eye reads length as the measurement
+                    <div
+                      className="h-full rounded-r-full"
                       style={{
-                        transformOrigin: "left center",
-                        animation: `grow-x 520ms cubic-bezier(0.22,1,0.36,1) ${i * 55}ms both`,
+                        // floor so a single occurrence still reads as a mark, not a sliver
+                        width: `${Math.max(2, (r.n / max) * 100)}%`,
+                        backgroundColor: SEVERITY_VAR[r.severity],
+                        // grows from the axis, so the eye reads length as the measurement
+                        animation: `grow-w 520ms cubic-bezier(0.22,1,0.36,1) ${i * 55}ms both`,
                       }}
                       onMouseMove={(e) =>
                         show(e, r.rule_id, [
@@ -99,7 +103,7 @@ export function ViolationsByRule({ report }: { report: Report }) {
                       }
                       onMouseLeave={hide}
                     />
-                  </svg>
+                  </div>
                 </div>
               </li>
             ))}

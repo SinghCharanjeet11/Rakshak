@@ -28,12 +28,16 @@ rules:
     title: "Mandate attempts must not exceed 4 per window (1 original + 3 retries)"
     applies_to: [mandate_retry]
     severity: high
-    clause: "NPCI UPI Autopay mandate execution rules, effective 2025-08-01"
+    clause: >-
+      NPCI, Guidelines on usage of UPI and API (notified 2025-05-21, enforced 2025-08-01)
     clause_text: >-
-      NOT QUOTED FROM THE PRIMARY SOURCE. Multiple consistent secondary sources report
-      that from 1 August 2025 NPCI permits a maximum of four attempts per mandate (one
-      original execution plus three retries), after which the mandate is auto-cancelled.
-      Replace this with the circular's own wording once obtained, and set value_verified.
+      INSTRUMENT IDENTIFIED, WORDING NOT QUOTED. The limit is set by NPCI's "Guidelines on
+      usage of Unified Payments Interface (UPI) and Application Programming Interface
+      (API)", notified 21 May 2025 with enforcement from 1 August 2025: one original
+      execution plus up to three retries per mandate sequence number, four attempts in
+      total. NPCI does not publish this circular openly, so the number is corroborated
+      across independent sources rather than read verbatim. Quote it and set
+      value_verified once a copy of the circular itself is obtained.
     value_verified: false
     condition:
       kind: max_value
@@ -92,9 +96,14 @@ rules:
   # CORRECTED 2026-09-02. Was 09:00–21:00, which was wrong at BOTH ends: it let a 20:00
   # call pass that should fail, and failed an 08:30 call that should pass.
   #
-  # RBI's Fair Practices Code restricts recovery contact to 08:00–19:00. This is a
-  # conduct rule about contacting customers; it is NOT in the e-mandate circular, so the
-  # clause cites the Fair Practices Code instead.
+  # VERIFIED 2026-09-05. The primary instrument was located and read: RBI/2022-23/108
+  # (DOR.ORG.REC.65/21.04.158/2022-23), "Outsourcing of Financial Services — Responsibilities
+  # of regulated entities employing Recovery Agents", 12 August 2022. Paragraph 2 lists
+  # prohibited practices and names the window verbatim, confirming 08:00–19:00 at both ends.
+  #
+  # `source` is set on the rule rather than inherited from this pack: the obligation is
+  # RBI's, not NPCI's, and the rule only lives in this file because that is where conduct
+  # rules are maintained. Stamping the pack's NPCI label on it would misattribute the law.
   #
   # Distinct from, and not to be confused with, NPCI's separate restriction on Autopay
   # *execution* windows (before 10:00, 13:00–17:00, after 21:30) — that governs when a
@@ -103,12 +112,15 @@ rules:
     title: "No customer contact outside 08:00–19:00 IST"
     applies_to: [contact]
     severity: medium
-    clause: "RBI Fair Practices Code — recovery agent contact hours"
+    source: "RBI — Responsibilities of regulated entities employing Recovery Agents (2022)"
+    clause: "RBI/2022-23/108 ¶2 (DOR.ORG.REC.65/21.04.158/2022-23, 12 August 2022)"
     clause_text: >-
-      NOT QUOTED FROM THE PRIMARY SOURCE. Multiple consistent secondary sources report
-      that recovery agents may contact borrowers only between 08:00 and 19:00. Replace
-      this with the Fair Practices Code wording once obtained, and set value_verified.
-    value_verified: false
+      [Regulated entities shall ensure that their agents do not resort to] persistently
+      calling the borrower and/ or calling the borrower before 8:00 a.m. and after 7:00
+      p.m. for recovery of overdue loans.
+    value_verified: true
+    verified_on: "2026-09-05"
+    verified_against: "https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=12378&Mode=0"
     condition:
       kind: timestamp_hour_between
       field: timestamp

@@ -72,16 +72,103 @@ def test_rules_for_filters_by_action_type(pack):
 def test_unverified_values_are_reported(pack):
     """OPEN-2 must stay visible, not silently ship.
 
-    As of 2026-09-02 the RBI values were read in the circular itself and are verified;
-    the two remaining entries rest on secondary sourcing only. That distinction is the
-    whole point of the flag, so this test pins *which* values are still unverified
-    rather than merely that some are.
+    The RBI e-mandate values were read in the circular itself on 2026-09-02 and re-read
+    against rbi.org.in on 2026-09-05; QUIET_HOURS was verified on 2026-09-05 once its
+    primary instrument was located. What remains unverified rests on sourcing that is
+    corroborated but not quoted. That distinction is the whole point of the flag, so this
+    test pins *which* values are still unverified rather than merely that some are.
     """
     unverified = pack.unverified_values()
-    assert "RETRY_CAP_PER_WINDOW" in unverified, "NPCI circular not read in primary form"
-    assert "QUIET_HOURS" in unverified, "Fair Practices Code not read in primary form"
+    assert "RETRY_CAP_PER_WINDOW" in unverified, "NPCI circular is not published openly"
+    assert "NO_RETRY_UNDER_DISPUTE" in unverified, "no primary source located"
+    assert "QUIET_HOURS" not in unverified, "verified against RBI/2022-23/108 ¶2"
     assert "AFA_ABOVE_THRESHOLD" not in unverified, "verified against §8(a)"
     assert "PRE_DEBIT_NOTICE_24H" not in unverified, "verified against §6(a)"
+
+
+def test_a_verified_rule_says_where_it_was_read(pack):
+    """`verified_on` alone is unfalsifiable — a date with no document behind it. Anything
+    claiming verification has to carry the source it was read at, so a reviewer can repeat
+    the check instead of trusting the flag."""
+    for r in pack.rules:
+        if r.value_verified:
+            assert r.verified_on, f"{r.id}: verified with no date"
+            assert r.verified_against, f"{r.id}: verified with no readable source"
+            assert r.verified_against.startswith("http"), f"{r.id}: source is not a URL"
+            assert r.clause_text, f"{r.id}: verified but does not carry the clause wording"
+            assert "NOT QUOTED" not in r.clause_text.upper(), (
+                f"{r.id}: flagged verified while its clause_text still says it is not quoted"
+            )
+
+
+def test_quiet_hours_is_attributed_to_rbi_not_npci(pack):
+    """It lives in the NPCI pack because that is where conduct rules are maintained, but
+    the obligation is RBI's. Inheriting the pack's source would misattribute the law."""
+    rule = next(r for r in pack.rules if r.id == "QUIET_HOURS")
+    assert "RBI" in rule.source and "NPCI" not in rule.source
+    assert "RBI/2022-23/108" in rule.clause
+    assert "8:00 a.m." in rule.clause_text and "7:00 p.m." in rule.clause_text
+
+
+def test_a_condition_naming_an_unknown_action_field_fails_to_load(tmp_path):
+    """The regression that motivated the check, taken from a real drafted rule.
+
+    Asked to encode a cross-border AFA clause, the drafting agent proposed
+    `required_flag: AFA` where the field is `afa_present`. Nothing rejected it: the
+    condition *kind* was valid, so the pack loaded.
+
+    That is not a cosmetic typo. Evaluators read operands with `getattr(action, name, None)`,
+    so an unknown name resolves to None for every action — and under this condition kind a
+    None flag reads as "not set", failing every debit above the threshold and citing
+    `AFA=missing`. A rule that flags compliant behaviour is the worst output this tool can
+    produce, and it would have arrived looking exactly like a working rule.
+    """
+    bad = VALID_PRIMARY.replace(
+        "condition: {kind: max_value, field: amount, max: 100}",
+        "condition: {kind: if_amount_gt_then_flag, amount_field: amount, "
+        "threshold: 5000, required_flag: AFA}",
+    )
+    _write(tmp_path, "bad.yaml", bad)
+    with pytest.raises(RulePackError) as exc:
+        load_pack("9999.01-1", tmp_path)
+    assert "required_flag" in str(exc.value)
+    assert "AFA" in str(exc.value)
+    assert "afa_present" in str(exc.value), "the error should name the fields that do exist"
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "{kind: max_value, field: nonexistent, max: 4}",
+        "{kind: flag_must_be_false, field: nonexistent}",
+        "{kind: timestamp_hour_between, field: nonexistent, start_hour: 8, end_hour: 19}",
+        "{kind: hours_between_at_least, earlier: nonexistent, later: debit_due_at, hours: 24}",
+        "{kind: hours_between_at_least, earlier: notice_sent_at, later: nonexistent, hours: 24}",
+    ],
+)
+def test_every_condition_kind_checks_its_field_operands(tmp_path, condition):
+    """Each kind reads different operand keys, so each needs covering — a check that only
+    caught `if_amount_gt_then_flag` would leave the same hole open four ways."""
+    _write(
+        tmp_path,
+        "bad.yaml",
+        VALID_PRIMARY.replace(
+            "condition: {kind: max_value, field: amount, max: 100}",
+            f"condition: {condition}",
+        ),
+    )
+    with pytest.raises(RulePackError, match="not a field on Action"):
+        load_pack("9999.01-1", tmp_path)
+
+
+def test_the_shipped_pack_only_references_real_action_fields(pack):
+    """Belt and braces on the pack that actually ships, independent of the loader check."""
+    from app.core.rules_loader import ACTION_FIELDS, CONDITION_FIELD_REFS
+
+    for rule in pack.rules:
+        cond = rule.condition.model_dump()
+        for key in CONDITION_FIELD_REFS[cond["kind"]]:
+            assert cond[key] in ACTION_FIELDS, f"{rule.id}: condition.{key}={cond[key]!r}"
 
 
 def test_available_versions_lists_primary_packs():
@@ -258,10 +345,19 @@ def test_verified_rules_carry_the_clause_text_they_cite(pack):
 
 
 def test_unverified_rules_say_so_in_their_clause_text(pack):
-    """The two secondary-sourced values must not read like quoted law."""
+    """A secondary-sourced value must not read like quoted law.
+
+    The disclaimer wording varies by how much is actually known — an instrument that has
+    been identified but not obtained says something different from one with no primary
+    source at all — so this pins the claim ("not quoted") rather than one exact sentence.
+    The failure it guards against is an unverified value silently acquiring the authority
+    of a verbatim citation.
+    """
     for rule in pack.rules:
         if not rule.value_verified and rule.clause_text:
-            assert "NOT QUOTED FROM THE PRIMARY SOURCE" in rule.clause_text
+            assert "NOT QUOTED" in rule.clause_text.upper(), (
+                f"{rule.id}: unverified but its clause_text does not say it is unquoted"
+            )
 
 
 def test_clause_text_cannot_reach_a_verdict():

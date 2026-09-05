@@ -87,6 +87,29 @@ CONDITION_KINDS = {
     "timestamp_hour_between",
 }
 
+# Which keys of each condition name an `Action` field rather than carrying a literal.
+#
+# The closed vocabulary already stops a rule naming a condition *kind* the engine cannot
+# evaluate. It did not stop a rule naming a *field* the Action does not have, and that gap
+# is not cosmetic: every evaluator reads its operands with `getattr(action, name, None)`,
+# so a typo'd or invented field resolves to None for every action forever. Under
+# `if_amount_gt_then_flag` a missing required_flag reads as "the flag is not set", which
+# fails every action above the threshold and reports the reason as `AFA=missing` — a rule
+# that silently flags compliant behaviour, which is the worst failure this tool has.
+#
+# Found by drafting a rule with the model: it proposed `required_flag: AFA` where the field
+# is `afa_present`, and the pack accepted it. Checking the names closes the authoring path
+# the same way the vocabulary closes the evaluation path.
+CONDITION_FIELD_REFS: dict[str, tuple[str, ...]] = {
+    "hours_between_at_least": ("earlier", "later"),
+    "if_amount_gt_then_flag": ("amount_field", "required_flag"),
+    "max_value": ("field",),
+    "flag_must_be_false": ("field",),
+    "timestamp_hour_between": ("field",),
+}
+
+ACTION_FIELDS = frozenset(Action.model_fields)
+
 
 # --------------------------------------------------------------------------
 # Rules + exemptions
@@ -106,6 +129,10 @@ class Rule(BaseModel):
     # left to a YAML comment so it survives into /rules and the dashboard — "who checked
     # this, and when" is part of the audit trail, not metadata about it.
     verified_on: Optional[str] = None
+    # Where the clause was read. "Verified on 2026-09-05" is unfalsifiable on its own; a
+    # URL is what lets a reviewer repeat the check instead of taking our word for it, which
+    # is the same standard `clause_text` sets for the wording.
+    verified_against: Optional[str] = None
     # The cited clause, verbatim. A citation nobody can check is an assertion; carrying
     # the sentence itself turns "trust our reading of §8(a)" into "here is §8(a)". It is
     # display-only and can never reach a verdict — the condition above decides, and this
@@ -135,6 +162,7 @@ class Exemption(BaseModel):
     source: str = ""
     value_verified: bool = False
     verified_on: Optional[str] = None
+    verified_against: Optional[str] = None
     clause_text: Optional[str] = None
 
     @model_validator(mode="after")
@@ -260,7 +288,11 @@ def _parse_file(path: Path) -> tuple[PackSource, list[Rule], list[Exemption]]:
     for entry in raw["rules"]:
         if not isinstance(entry, dict) or "id" not in entry:
             raise RulePackError(f"{path.name}: every rule needs an 'id'")
-        entry = {**entry, "source": meta.source}
+        # Pack source is the default, not an override. A pack collects rules by *where they
+        # are maintained*, which is not always where they come from: QUIET_HOURS lives in
+        # the NPCI pack but is an RBI Fair Practices Code rule, and stamping NPCI on it
+        # would misattribute the law. A rule that names its own source keeps it.
+        entry = {"source": meta.source, **entry}
 
         if entry.get("kind") == "exemption":
             try:
@@ -277,6 +309,19 @@ def _parse_file(path: Path) -> tuple[PackSource, list[Rule], list[Exemption]]:
                 f"{path.name}: rule {entry['id']}: unknown condition kind "
                 f"'{cond['kind']}'. Closed vocabulary is {sorted(CONDITION_KINDS)}"
             )
+        # Every operand must name a real Action field. Failing the load is the only safe
+        # option: the evaluators read operands with getattr(..., None), so an unknown name
+        # does not error at verdict time — it quietly resolves to None for every action and
+        # turns the rule into a false-positive generator (invariant I6's reasoning: fail to
+        # load rather than default to a permissive, or here an over-strict, reading).
+        for key in CONDITION_FIELD_REFS[cond["kind"]]:
+            name = cond.get(key)
+            if isinstance(name, str) and name not in ACTION_FIELDS:
+                raise RulePackError(
+                    f"{path.name}: rule {entry['id']}: condition.{key} names "
+                    f"'{name}', which is not a field on Action. "
+                    f"Known fields are {sorted(ACTION_FIELDS)}"
+                )
         try:
             rules.append(Rule.model_validate(entry))
         except ValidationError as exc:

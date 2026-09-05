@@ -148,6 +148,11 @@ export interface RuleView {
   value_verified: boolean;
   verified_on: string | null;
   /**
+   * Where the clause was read. A date on its own is unfalsifiable; the URL is what lets a
+   * reviewer repeat the check instead of accepting the flag.
+   */
+  verified_against: string | null;
+  /**
    * The cited clause, verbatim. Display-only evidence: the reader compares it against
    * `condition_prose` and judges for themselves whether we read the law correctly,
    * rather than trusting a paragraph number they cannot check.
@@ -168,6 +173,7 @@ export interface ExemptionView {
   source: string;
   value_verified: boolean;
   verified_on: string | null;
+  verified_against: string | null;
   clause_text: string | null;
 }
 
@@ -237,6 +243,37 @@ export function verifyBatch(body: {
   rulepack_version?: string;
 }): Promise<Report> {
   return request<Report>("/verify/batch", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * A proposed rule-pack entry, from the drafting agent.
+ *
+ * `accepted` means the draft survived the closed condition vocabulary — the same membrane
+ * an ingested Action crosses — NOT that the rule is correct. Nothing here is ever written:
+ * `review_required` is always true, and a human commits the YAML by hand.
+ */
+export interface RuleDraft {
+  drafted: boolean;
+  accepted: boolean;
+  kind: "rule" | "exemption" | null;
+  reason: string | null;
+  rejection: string | null;
+  yaml: string | null;
+  rule: RuleView | null;
+  exemption: ExemptionView | null;
+  tokens_used: number;
+  cost_inr: number;
+  review_required: boolean;
+}
+
+export function draftRule(body: {
+  clause_text: string;
+  hint?: string;
+}): Promise<RuleDraft> {
+  return request<RuleDraft>("/rules/draft", {
     method: "POST",
     body: JSON.stringify(body),
   });

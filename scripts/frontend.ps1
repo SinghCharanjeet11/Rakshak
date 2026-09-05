@@ -41,10 +41,12 @@ if ($Dev) {
     # `next start` serves .next/ — if it is missing or stale the app 500s in ways that
     # look like application bugs, so always build first.
     #
-    # The retry exists because this repo lives under OneDrive. OneDrive dehydrates files
-    # into cloud placeholders (reparse points), and Next's cleanup step calls readlink on
-    # them and dies with EINVAL — leaving .next half-deleted so every later build fails on
-    # the wreckage. Nuking .next and retrying once recovers it.
+    # The retry exists because a half-written .next leaves every later build failing on the
+    # wreckage rather than on the real error. That was originally an OneDrive problem — it
+    # dehydrates files into cloud placeholders (reparse points), Next's cleanup step calls
+    # readlink on them and dies with EINVAL. The repo moved out of OneDrive on 2026-09-04,
+    # but an interrupted build can still strand a stale .next, and nuking it and retrying
+    # once recovers that too.
     Write-Host "Building..." -ForegroundColor Yellow
     npm run build
     if ($LASTEXITCODE -ne 0) {
@@ -52,7 +54,7 @@ if ($Dev) {
         cmd /c "rmdir /s /q .next" 2>$null
         npm run build
         if ($LASTEXITCODE -ne 0) {
-            Write-Error "Build failed twice. If the error mentions 'readlink' or EINVAL, the cause is OneDrive: right-click the project folder -> 'Always keep on this device', or move the repo outside OneDrive."
+            Write-Error "Build failed twice, so a stale .next is not the cause - read the actual error above. ('readlink' or EINVAL means the repo sits on a cloud-synced folder; it was moved to c:\dev\Rakshak on 2026-09-04 to avoid exactly that, so check it has not been moved back.)"
         }
     }
     Write-Host ""

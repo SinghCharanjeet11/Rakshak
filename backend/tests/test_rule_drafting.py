@@ -75,6 +75,36 @@ def test_an_invented_condition_kind_is_rejected():
     assert "closed vocabulary" in r.rejection
 
 
+def test_an_invented_field_name_is_rejected():
+    """The companion to the invented-kind check, and the one that actually bit.
+
+    The drafting prompt already enumerates the Action fields and forbids inventing one. A
+    live run against the real model still returned `required_flag: AFA` where the field is
+    `afa_present`, and it was accepted, because only the condition *kind* was being checked.
+
+    The consequence is not a broken rule but a quietly wrong one: evaluators read operands
+    with `getattr(action, name, None)`, so `AFA` resolves to None for every action and this
+    condition kind reads a None flag as "not set" — failing every debit above the threshold
+    and citing `AFA=missing`. A prompt is not a control; this is.
+    """
+    bad = {
+        **VALID_RULE,
+        "rule": {
+            **VALID_RULE["rule"],
+            "condition": {
+                "kind": "if_amount_gt_then_flag",
+                "amount_field": "amount",
+                "threshold": 5000,
+                "required_flag": "AFA",
+            },
+        },
+    }
+    r = validate_draft(bad)
+    assert not r.accepted
+    assert "AFA" in r.rejection
+    assert "afa_present" in r.rejection, "the rejection should name the fields that do exist"
+
+
 def test_a_condition_missing_required_fields_is_rejected():
     bad = {**VALID_RULE, "rule": {**VALID_RULE["rule"],
                                   "condition": {"kind": "max_value", "field": "retry_index"}}}

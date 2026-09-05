@@ -5,6 +5,8 @@ No test here reaches a model provider: conftest blanks OPENAI_API_KEY, so the fr
 path exercises the documented graceful-degradation behaviour rather than the network.
 """
 
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -385,10 +387,19 @@ def test_open_mode_needs_no_key(client, clean_db):
 
 
 def test_rules_endpoint_exposes_the_clause_text(client):
+    """Provenance has to survive to the wire, or the UI cannot show its work.
+
+    The date is asserted as *a date* rather than one literal value: re-reading a clause and
+    stamping a newer date is the behaviour we want, not a regression. What must not change
+    is that a verified rule ships its wording, when it was checked, and where — the three
+    things a reviewer needs to repeat the check.
+    """
     body = client.get(f"{API}/rules").json()
     afa = next(r for r in body["rules"] if r["id"] == "AFA_ABOVE_THRESHOLD")
     assert "without AFA up to" in afa["clause_text"]
-    assert afa["verified_on"] == "2026-09-02"
+    assert afa["value_verified"] is True
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", afa["verified_on"] or "")
+    assert (afa["verified_against"] or "").startswith("https://www.rbi.org.in/")
 
 
 def test_rules_endpoint_exposes_exemption_selectors(client):

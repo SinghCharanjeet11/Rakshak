@@ -6,7 +6,7 @@
   Handles the four things that actually go wrong when starting this by hand:
 
     1. Wrong directory  — resolves paths from the script's own location, so it works
-                          from anywhere, including the outer Rakshak/Rakshak wrapper.
+                          from any working directory.
     2. Wrong python     — always uses .venv\Scripts\python.exe. A bare `python` picks up
                           the system interpreter, which has none of the dependencies.
     3. No venv          — creates it and installs on first run instead of erroring.

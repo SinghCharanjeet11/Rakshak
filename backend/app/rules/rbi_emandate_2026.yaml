@@ -4,7 +4,10 @@
 # active rule-pack version off this file (see core/rules_loader.py). Non-primary packs
 # (npci_mandate.yaml) merge into whichever primary version is selected.
 #
-# OPEN-2 CLOSED for this file on 2026-09-02. Every value below was read from the text of
+# OPEN-2 CLOSED for this file on 2026-09-02, and INDEPENDENTLY RE-VERIFIED on 2026-09-05
+# against the circular as published on rbi.org.in. Each rule now carries the URL it was
+# read at, so a reviewer can repeat the check rather than take this file's word for it.
+# Every value below was read from the text of
 # RBI/DPSS/2026-27/396 itself (also numbered RBI/CO.DPSS.POLC.No.S56/02.14.003/2026-27,
 # dated April 21, 2026), not from secondary reporting, and each `clause` now cites the
 # paragraph it came from. The circular consolidates and repeals eight prior circulars
@@ -30,7 +33,8 @@ rules:
       An issuer shall send a pre-transaction notification to the customer, at least
       24 hours prior to the actual charge / debit.
     value_verified: true
-    verified_on: "2026-09-02"
+    verified_on: "2026-09-05"
+    verified_against: "https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=13374"
     condition:
       kind: hours_between_at_least
       earlier: notice_sent_at
@@ -51,7 +55,8 @@ rules:
       All recurring transactions may be authorised without AFA up to ₹15,000/- per
       transaction. Transactions above this amount shall be subject to AFA.
     value_verified: true
-    verified_on: "2026-09-02"
+    verified_on: "2026-09-05"
+    verified_against: "https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=13374"
     condition:
       kind: if_amount_gt_then_flag
       amount_field: amount
@@ -79,7 +84,8 @@ rules:
       transaction or the e-mandate. Any such opt-out shall be validated by the issuer
       using AFA. An intimation to this effect shall be sent to the customer.
     value_verified: true
-    verified_on: "2026-09-02"
+    verified_on: "2026-09-05"
+    verified_against: "https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=13374"
     condition:
       kind: flag_must_be_false
       field: mandate_opted_out
@@ -103,7 +109,8 @@ rules:
       Pre-transaction notification is not required for e-mandates registered to
       auto-replenish balances of FASTag, and National Common Mobility Card (NCMC).
     value_verified: true
-    verified_on: "2026-09-02"
+    verified_on: "2026-09-05"
+    verified_against: "https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=13374"
 
   # §8(b) verbatim: "Payment of insurance premiums, subscription to mutual funds, and
   # credit card bill payments may be made without AFA up to ₹1,00,000/- per transaction."
@@ -123,4 +130,5 @@ rules:
       Payment of insurance premiums, subscription to mutual funds, and credit card
       bill payments may be made without AFA up to ₹1,00,000/- per transaction.
     value_verified: true
-    verified_on: "2026-09-02"
+    verified_on: "2026-09-05"
+    verified_against: "https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=13374"

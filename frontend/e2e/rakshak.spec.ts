@@ -165,11 +165,26 @@ test.describe("rule-pack", () => {
   test("a secondary-sourced value is not dressed up as quoted law", async ({ page }) => {
     // The failure this guards against is cosmetic and serious: an unverified value styled
     // like a quotation would assert exactly the authority the flag exists to deny.
+    //
+    // Asserted in both directions, and matched on the claim ("not quoted") rather than one
+    // disclaimer sentence. The earlier version pinned an exact phrase, which meant rewording
+    // a disclaimer — legitimate, since "instrument identified but not obtained" is a
+    // different state from "no primary source at all" — could silently have stopped testing
+    // anything at all while still passing.
     await page.goto("/rules");
     await ready(page);
-    const warned = page.getByText(/Multiple consistent secondary sources report/).first();
-    await expect(warned).toBeVisible();
-    await expect(warned.locator("xpath=ancestor-or-self::blockquote")).toHaveCount(0);
+
+    const unquoted = page.getByText(/NOT QUOTED/i).first();
+    await expect(unquoted).toBeVisible();
+    await expect(unquoted.locator("xpath=ancestor-or-self::blockquote")).toHaveCount(0);
+
+    // The converse: a value that *was* read in the primary source is quoted, and carries a
+    // link so the reader can check it rather than take the flag on trust.
+    const quoted = page.getByText(/without AFA up to/).first();
+    await expect(quoted.locator("xpath=ancestor-or-self::blockquote")).toHaveCount(1);
+    await expect(
+      page.getByRole("link", { name: /read it yourself/i }).first(),
+    ).toBeVisible();
   });
 
   test("search finds a rule by the wording of the law, not just our paraphrase", async ({

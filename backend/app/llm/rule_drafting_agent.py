@@ -34,7 +34,13 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field, ValidationError
 
-from app.core.rules_loader import CONDITION_KINDS, Exemption, Rule
+from app.core.rules_loader import (
+    ACTION_FIELDS,
+    CONDITION_FIELD_REFS,
+    CONDITION_KINDS,
+    Exemption,
+    Rule,
+)
 from app.llm._provider import LLMResponse, LLMUnavailable, Usage, complete_json
 
 log = logging.getLogger("rakshak.llm.draft")
@@ -239,7 +245,8 @@ def validate_draft(raw: dict[str, Any]) -> DraftResult:
         if kind == "rule":
             # Checked before model_validate so the message names the real problem: the
             # discriminated union would otherwise report a confusing per-variant error.
-            cond_kind = (payload.get("condition") or {}).get("kind")
+            cond = payload.get("condition") or {}
+            cond_kind = cond.get("kind")
             if cond_kind not in CONDITION_KINDS:
                 return DraftResult(
                     drafted=True,
@@ -249,6 +256,22 @@ def validate_draft(raw: dict[str, Any]) -> DraftResult:
                         f"{sorted(CONDITION_KINDS)}"
                     ),
                 )
+            # The prompt already lists the Action fields and forbids inventing one, and a
+            # live run still came back with `required_flag: AFA` for `afa_present`. A prompt
+            # is not a control — this is. Rejecting here rather than at pack-load keeps the
+            # bad draft away from the reviewer entirely, instead of handing them YAML that
+            # looks correct and breaks the pack when committed.
+            for key in CONDITION_FIELD_REFS[cond_kind]:
+                name = cond.get(key)
+                if isinstance(name, str) and name not in ACTION_FIELDS:
+                    return DraftResult(
+                        drafted=True,
+                        raw=raw,
+                        rejection=(
+                            f"condition.{key} names {name!r}, which is not a field on "
+                            f"Action. Known fields are {sorted(ACTION_FIELDS)}"
+                        ),
+                    )
             rule = Rule.model_validate(payload)
             return DraftResult(
                 drafted=True, accepted=True, kind="rule", rule=rule, raw=raw,

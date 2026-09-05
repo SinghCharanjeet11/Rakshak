@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { RuleDrafter } from "@/components/RuleDrafter";
 import { RulePackViewer } from "@/components/RulePackViewer";
 import { ErrorNote, Skeleton } from "@/components/ui";
 import { ApiError, getRules, type RulePackView } from "@/lib/api";
@@ -35,6 +36,10 @@ export default function RulesPage() {
         </>
       )}
       {pack && <RulePackViewer pack={pack} />}
+
+      {/* Below the pack, deliberately: the shipped artifact is the thing that matters, and
+          the drafter is how the next entry gets proposed — not a way to change this one. */}
+      <RuleDrafter />
     </div>
   );
 }

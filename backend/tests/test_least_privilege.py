@@ -113,7 +113,7 @@ def test_attach_never_touches_a_verdict_field():
         offending_value="o", clause="c", source="s",
     )
     before = v.model_dump(exclude={"explanation"})
-    explanation_agent.attach([v], {"a_1": "some prose"})
+    explanation_agent.attach([v], {("a_1", "R"): "some prose"})
 
     assert v.explanation == "some prose"
     assert v.model_dump(exclude={"explanation"}) == before

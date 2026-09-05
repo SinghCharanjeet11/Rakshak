@@ -59,6 +59,9 @@ def get_rules(version: Optional[str] = Query(default=None)) -> dict[str, object]
                 "condition_prose": _describe(r.condition),
                 "value_verified": r.value_verified,
                 "verified_on": r.verified_on,
+                # Where the clause was read, so the check is repeatable by a reviewer
+                # rather than an assertion they have to accept.
+                "verified_against": r.verified_against,
                 # Display-only evidence: the reader compares `clause_text` against
                 # `condition` and decides for themselves whether we read the law right.
                 "clause_text": r.clause_text,
@@ -77,6 +80,7 @@ def get_rules(version: Optional[str] = Query(default=None)) -> dict[str, object]
                 "source": e.source,
                 "value_verified": e.value_verified,
                 "verified_on": e.verified_on,
+                "verified_against": e.verified_against,
                 "clause_text": e.clause_text,
             }
             for e in pack.exemptions

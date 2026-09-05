@@ -20,18 +20,28 @@ const NOT_PRIMARY = "NOT QUOTED FROM THE PRIMARY SOURCE";
  */
 function ClauseText({
   text,
+  verified,
   verifiedOn,
+  verifiedAgainst,
 }: {
   text: string | null;
+  /**
+   * Drives the styling off the pack's own flag rather than sniffing the text for a
+   * disclaimer prefix. Prefix-matching tied this decision to one exact sentence, so
+   * rewording a disclaimer — which is legitimate, since "instrument identified but not
+   * obtained" is a different state from "no primary source at all" — would silently have
+   * promoted an unverified value into a quotation. The flag is the fact; the wording is not.
+   */
+  verified?: boolean;
   verifiedOn?: string | null;
+  verifiedAgainst?: string | null;
 }) {
   if (!text) return null;
-  const quoted = !text.startsWith(NOT_PRIMARY);
 
-  if (!quoted) {
+  if (!verified) {
     return (
       <p className="mt-3 rounded border border-warn-border bg-warn-bg px-2 py-1.5 text-[11px] leading-relaxed text-warn-fg">
-        {text.replace(`${NOT_PRIMARY}.`, "").trim()}
+        {text.replace(new RegExp(`^${NOT_PRIMARY}\\.?\\s*`), "").trim()}
       </p>
     );
   }
@@ -43,7 +53,22 @@ function ClauseText({
       </blockquote>
       {verifiedOn && (
         <figcaption className="mt-1 pl-2.5 text-[10px] text-faint">
-          read in the circular on {verifiedOn}
+          read in the source on {verifiedOn}
+          {verifiedAgainst && (
+            <>
+              {" · "}
+              {/* A date nobody can check is an assertion. The link is what makes the
+                  claim falsifiable by the person reading it. */}
+              <a
+                href={verifiedAgainst}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="underline underline-offset-2 hover:text-body"
+              >
+                read it yourself
+              </a>
+            </>
+          )}
         </figcaption>
       )}
     </figure>
@@ -269,7 +294,12 @@ export function RulePackViewer({ pack }: { pack: RulePackView }) {
                   </div>
                 </dl>
 
-                <ClauseText text={r.clause_text} verifiedOn={r.verified_on} />
+                <ClauseText
+                  text={r.clause_text}
+                  verified={r.value_verified}
+                  verifiedOn={r.verified_on}
+                  verifiedAgainst={r.verified_against}
+                />
               </article>
             ))}
           </div>
@@ -297,7 +327,12 @@ export function RulePackViewer({ pack }: { pack: RulePackView }) {
                 <div className="label">Clause</div>
                 <div className="mt-0.5 font-mono text-body">{e.clause}</div>
               </div>
-              <ClauseText text={e.clause_text} />
+              <ClauseText
+                text={e.clause_text}
+                verified={e.value_verified}
+                verifiedOn={e.verified_on}
+                verifiedAgainst={e.verified_against}
+              />
             </article>
           ))}
         </div>

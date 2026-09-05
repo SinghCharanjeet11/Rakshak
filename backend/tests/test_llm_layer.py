@@ -232,13 +232,79 @@ async def test_no_violations_makes_no_call(fake_provider):
     assert client.calls == [], "a clean batch must not spend a token"
 
 
-async def test_explanations_are_returned_by_action(fake_provider):
+async def test_explanations_are_keyed_by_action_and_rule(fake_provider):
+    fake_provider.install(
+        '{"explanations": [{"action_id": "a_1", "rule_id": "AFA_ABOVE_THRESHOLD",'
+        ' "text": "Because the amount exceeded."}]}'
+    )
+    out, usage = await explanation_agent.explain_batch([_violation()])
+    assert out == {("a_1", "AFA_ABOVE_THRESHOLD"): "Because the amount exceeded."}
+    assert usage.total_tokens > 0
+
+
+async def test_one_action_breaking_two_rules_gets_two_distinct_captions(fake_provider):
+    """The regression that made this keying change necessary.
+
+    Keyed by `action_id` alone, the second entry overwrote the first and both violations
+    were captioned with the same prose — a live ₹25,000 short-notice debit had its
+    PRE_DEBIT_NOTICE_24H finding explained in terms of AFA thresholds. The verdict was
+    never wrong, but the sentence a compliance officer reads was about another regulation.
+    """
+    notice = _violation("a_1", "PRE_DEBIT_NOTICE_24H")
+    afa = _violation("a_1", "AFA_ABOVE_THRESHOLD")
+    fake_provider.install(
+        '{"explanations": ['
+        '{"action_id": "a_1", "rule_id": "PRE_DEBIT_NOTICE_24H", "text": "Notice was late."},'
+        '{"action_id": "a_1", "rule_id": "AFA_ABOVE_THRESHOLD", "text": "AFA was missing."}'
+        "]}"
+    )
+    out, _ = await explanation_agent.explain_batch([notice, afa])
+    assert len(out) == 2, "one entry per violation, not one per action"
+
+    explanation_agent.attach([notice, afa], out)
+    assert notice.explanation == "Notice was late."
+    assert afa.explanation == "AFA was missing."
+
+
+async def test_missing_rule_id_still_matches_an_unambiguous_violation(fake_provider):
+    """An action with a single violation has nothing to confuse it with, so a model that
+    forgets the rule_id still gets its caption attached rather than silently losing it."""
     fake_provider.install(
         '{"explanations": [{"action_id": "a_1", "text": "Because the amount exceeded."}]}'
     )
-    out, usage = await explanation_agent.explain_batch([_violation()])
-    assert out == {"a_1": "Because the amount exceeded."}
-    assert usage.total_tokens > 0
+    v = _violation("a_1", "AFA_ABOVE_THRESHOLD")
+    out, _ = await explanation_agent.explain_batch([v])
+    explanation_agent.attach([v], out)
+    assert v.explanation == "Because the amount exceeded."
+
+
+async def test_missing_rule_id_is_dropped_when_the_action_is_ambiguous(fake_provider):
+    """The safety half of the fallback: with two violations on one action and no rule_id to
+    tell them apart, guessing would caption a finding with another rule's prose. Losing the
+    caption is the cheaper failure."""
+    notice = _violation("a_1", "PRE_DEBIT_NOTICE_24H")
+    afa = _violation("a_1", "AFA_ABOVE_THRESHOLD")
+    fake_provider.install(
+        '{"explanations": [{"action_id": "a_1", "text": "Something went wrong."}]}'
+    )
+    out, _ = await explanation_agent.explain_batch([notice, afa])
+    assert out == {}
+
+    explanation_agent.attach([notice, afa], out)
+    assert notice.explanation is None and afa.explanation is None
+
+
+async def test_a_wrong_rule_id_is_dropped_rather_than_mislabelling_a_finding(fake_provider):
+    """A model that echoes a rule_id we never sent must not have its prose land on some
+    other violation of the same action."""
+    v = _violation("a_1", "AFA_ABOVE_THRESHOLD")
+    other = _violation("a_1", "QUIET_HOURS")
+    fake_provider.install(
+        '{"explanations": [{"action_id": "a_1", "rule_id": "NOT_A_RULE", "text": "x"}]}'
+    )
+    out, _ = await explanation_agent.explain_batch([v, other])
+    explanation_agent.attach([v, other], out)
+    assert v.explanation is None and other.explanation is None
 
 
 async def test_only_decided_fields_are_sent(fake_provider):
@@ -279,14 +345,14 @@ async def test_malformed_explanations_are_dropped_not_crashed(fake_provider, pay
 
 async def test_a_model_that_disputes_the_verdict_cannot_change_it(fake_provider):
     """The prompt forbids second-guessing, but prompts are not a control. Even if the model
-    returns verdict fields, `explain_batch` reads only action_id and text, so they are
-    dropped before anything downstream sees them (invariant I8)."""
+    returns verdict fields, `explain_batch` reads only the two identifiers and the text, so
+    the rest are dropped before anything downstream sees them (invariant I8)."""
     fake_provider.install(
-        '{"explanations": [{"action_id": "a_1", "text": "Actually compliant.",'
-        ' "severity": "low", "rule_id": "NONE", "verdict": "pass"}]}'
+        '{"explanations": [{"action_id": "a_1", "rule_id": "AFA_ABOVE_THRESHOLD",'
+        ' "text": "Actually compliant.", "severity": "low", "verdict": "pass"}]}'
     )
     out, _ = await explanation_agent.explain_batch([_violation()])
-    assert out == {"a_1": "Actually compliant."}
+    assert out == {("a_1", "AFA_ABOVE_THRESHOLD"): "Actually compliant."}
 
     v = _violation()
     before = v.model_dump(exclude={"explanation"})
@@ -298,6 +364,6 @@ async def test_a_model_that_disputes_the_verdict_cannot_change_it(fake_provider)
 
 def test_attach_leaves_unexplained_violations_alone():
     a, b = _violation("a_1"), _violation("a_2")
-    explanation_agent.attach([a, b], {"a_1": "prose"})
+    explanation_agent.attach([a, b], {("a_1", "AFA_ABOVE_THRESHOLD"): "prose"})
     assert a.explanation == "prose"
     assert b.explanation is None
